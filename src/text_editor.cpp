@@ -24,7 +24,7 @@ struct Rectangle {
     int height;
 };
 
-void fill_rect(Rectangle rect, u32 pixel_color, u32 *screen_pixels) {
+internal void fill_rect(Rectangle rect, u32 pixel_color, u32 *screen_pixels) {
     assert(screen_pixels);
     for (int row = 0; row < rect.height; ++row) {
         for (int col = 0; col < rect.width; ++col) {
@@ -59,6 +59,11 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
     };
 
+    b32 pressed_up    = false;
+    b32 pressed_down  = false;
+    b32 pressed_left  = false;
+    b32 pressed_right = false;
+    
     b32 running = true;
     while (running) {
         SDL_Event event;
@@ -67,21 +72,35 @@ int main(int argc, char *argv[]) {
                 running = false;
                 break;
             }
-            if (event.type != SDL_KEYDOWN) {
+            if (event.type != SDL_KEYDOWN && event.type != SDL_KEYUP) {
                 break;
             }
             switch (event.key.keysym.sym) {
+                case SDLK_ESCAPE:
+                    running = !(event.type == SDL_KEYDOWN);
+                    break;
                 case SDLK_UP:
+                    pressed_up = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_DOWN:
+                    pressed_down = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_LEFT:
+                    pressed_left = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_RIGHT:
+                    pressed_right = (event.type == SDL_KEYDOWN);
                     break;
             }
-
         }
+
+        if (pressed_up)    square.y -= 1;
+        if (pressed_down)  square.y += 1;
+        if (pressed_left)  square.x -= 1;
+        if (pressed_right) square.x += 1;
+
+        memset(screen_pixels, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u32));
+        fill_rect(square, 255, screen_pixels);
 
         SDL_UpdateTexture(screen, NULL, screen_pixels, SCREEN_WIDTH * sizeof(u32));
         SDL_RenderClear(renderer);
