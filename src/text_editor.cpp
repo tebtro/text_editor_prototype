@@ -18,50 +18,32 @@
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
-struct Rectangle {
-    int x;
-    int y;
-    int width;
-    int height;
-};
-
-internal void fill_rect(Rectangle rect, u32 pixel_color, u32 *screen_pixels) {
-    assert(screen_pixels);
-    for (int row = 0; row < rect.height; ++row) {
-        for (int col = 0; col < rect.width; ++col) {
-            screen_pixels[(row + rect.y) * SCREEN_WIDTH + col + rect.x] = pixel_color;
-        }
-    }
-}
-
 int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     assert(window);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_SOFTWARE);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     assert(renderer);
-
-    SDL_PixelFormat *format = SDL_AllocFormat(SDL_PIXELFORMAT_RGB888);
-
-    SDL_Texture *screen = SDL_CreateTexture(renderer, format->format, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_Surface *screen = SDL_GetWindowSurface(window);
     assert(screen);
-
-    u32 *screen_pixels = (u32*) calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof(u32));
-    assert(screen_pixels);
-
-    Rectangle square = {0, 0, 30, 30};
-    square.x = (SCREEN_WIDTH  - square.width)  / 2;
-    square.y = (SCREEN_HEIGHT - square.height) / 2;
-    u32 pixel_color = SDL_MapRGB(format, 0, 0, 255);
-    fill_rect(square, pixel_color, screen_pixels);
-    
     defer { 
         SDL_DestroyWindow(window);
         SDL_Quit();
         TTF_Quit();
     };
 
+    TTF_Font *font = TTF_OpenFont("../assets/SourceCodePro.ttf", 32);
+    assert(font);
+    SDL_Color text_color = {255, 255, 255, 0};
+    SDL_Surface *text_surface = TTF_RenderText_Solid(font, "Hello Sailor!", text_color);
+    SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+    SDL_Rect text_rect = {(SCREEN_WIDTH - text_surface->w) / 2, (SCREEN_HEIGHT - 30) / 2, text_surface->w, text_surface->h};
+    defer {
+        TTF_CloseFont(font);
+        SDL_DestroyTexture(text_texture);
+    };
+    
     b32 pressed_up    = false;
     b32 pressed_down  = false;
     b32 pressed_left  = false;
@@ -97,19 +79,19 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (pressed_up)    square.y -= 1;
-        if (pressed_down)  square.y += 1;
-        if (pressed_left)  square.x -= 1;
-        if (pressed_right) square.x += 1;
-
-        memset(screen_pixels, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u32));
-        fill_rect(square, 255, screen_pixels);
-
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        SDL_RenderPresent(renderer);
+        /*
+        SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
+        SDL_UpdateWindowSurface(window);
+        */
+        /*
         SDL_UpdateTexture(screen, NULL, screen_pixels, SCREEN_WIDTH * sizeof(u32));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, screen, NULL, NULL);
         SDL_RenderPresent(renderer);
-
+        */
         SDL_Delay(14);
     }
 
