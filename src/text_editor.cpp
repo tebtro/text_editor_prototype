@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include "iml_types.h"
 #include "iml_general.h"
@@ -35,6 +36,7 @@ internal void fill_rect(Rectangle rect, u32 pixel_color, u32 *screen_pixels) {
 
 int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
+    TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     assert(window);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_SOFTWARE);
@@ -57,6 +59,7 @@ int main(int argc, char *argv[]) {
     defer { 
         SDL_DestroyWindow(window);
         SDL_Quit();
+        TTF_Quit();
     };
 
     b32 pressed_up    = false;
