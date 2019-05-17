@@ -1,0 +1,103 @@
+* simple
+#+BEGIN_SRC c++
+  function main() {
+      Game_Controller_Input input;
+      boolean running;
+      while (running) {
+          //
+          // process events
+          //
+          while (poll_event) {
+              // handle window events
+              // handle keyboard events
+          }
+          while (poll_xinput_event) {
+              // handle controller events
+          }
+
+          //
+          // game update and render
+          //
+          game.update_and_render(input);
+      }
+  }
+#+END_SRC
+* more detailed
+#+BEGIN_SRC c++
+  int main() {
+      Init();
+      struct Game_Button_State {
+          int half_transition_count;
+          bool ended_down;
+      };
+      struct Game_Controller_Input {
+          bool is_connected;
+          ...
+          union {
+              game_button_state buttons[12];
+              struct {
+                  game_button_state move_up;
+                  game_button_state move_down;
+                  ...
+              }
+          };
+      };
+      struct Game_Input {
+          bool quit_requested;
+          game_controller_input controllers[MAX_CONTROLLER_COUNT];
+          Game_Button_State mouse_buttons[platform_mouse_button_count];
+          bool f_key_pressed[13];
+      };
+      bool running = true;
+      // @todo where is keyboard input
+      while (running) {
+          void ProcessMessages() {
+              Event event;
+              while(PollEvent(&event)) {
+          handle_keys:
+                  if key x down   keyboard_controller.x.is_down
+              }
+          }
+          void ProcessXInput() {
+          }
+          void ProcessMousePosition() {
+          }
+
+
+          //
+          // Update and Render
+          //
+          void game_update_and_render() {
+              void update_and_render_world() {
+                  void simulate() {
+                      void ExecuteBrain() {
+                          void ExecuteHeroBrain(Game_Input input) {
+                              if(WasPressed(Controller->MoveUp))
+                              {
+                                  ConHero->ddP.x = 0.0f;
+                                  ConHero->ddP.y = 1.0f;
+                              }
+                              if(WasPressed(Controller->MoveDown))
+                              {
+                                  ConHero->ddP.x = 0.0f;
+                                  ConHero->ddP.y = -1.0f;
+                              }
+                              if(WasPressed(Controller->MoveLeft))
+                              {
+                                  ConHero->ddP.x = -1.0f;
+                                  ConHero->ddP.y = 0.0f;
+                              }
+                              if(WasPressed(Controller->MoveRight))
+                              {
+                                  ConHero->ddP.x = 1.0f;
+                                  ConHero->ddP.y = 0.0f;
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          update_audio();
+      }
+  }
+#+END_SRC

@@ -18,6 +18,22 @@
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
+struct Game_Button_State {
+    b32 is_pressed;
+};
+
+struct Game_Controller_Input {
+    union {
+        Game_Button_State buttons[4];
+        struct {
+            Game_Button_State up;
+            Game_Button_State down;
+            Game_Button_State left;
+            Game_Button_State right;
+        };
+    };
+};
+
 int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
@@ -38,18 +54,17 @@ int main(int argc, char *argv[]) {
     SDL_Color text_color = {255, 255, 255, 0};
     SDL_Surface *text_surface = TTF_RenderText_Solid(font, "Hello Sailor!", text_color);
     SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-    SDL_Rect text_rect = {(SCREEN_WIDTH - text_surface->w) / 2, (SCREEN_HEIGHT - 30) / 2, text_surface->w, text_surface->h};
+    SDL_Rect text_rect = {(SCREEN_WIDTH - text_surface->w) / 2, (SCREEN_HEIGHT - (int)(text_surface->h * 1.5f)) / 2, text_surface->w, text_surface->h};
     defer {
         TTF_CloseFont(font);
         SDL_DestroyTexture(text_texture);
     };
-    
-    b32 pressed_up    = false;
-    b32 pressed_down  = false;
-    b32 pressed_left  = false;
-    b32 pressed_right = false;
+
+    Game_Controller_Input input = {};
     
     b32 running = true;
+    SDL_StartTextInput();
+    defer {SDL_StopTextInput();};
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {
@@ -57,6 +72,7 @@ int main(int argc, char *argv[]) {
                 running = false;
                 break;
             }
+            if (event.type == SDL_TEXTINPUT) printf("%s\n", event.text.text);
             if (event.type != SDL_KEYDOWN && event.type != SDL_KEYUP) {
                 break;
             }
@@ -65,20 +81,27 @@ int main(int argc, char *argv[]) {
                     running = !(event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_UP:
-                    pressed_up = (event.type == SDL_KEYDOWN);
+                    input.up.is_pressed = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_DOWN:
-                    pressed_down = (event.type == SDL_KEYDOWN);
+                    input.down.is_pressed = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_LEFT:
-                    pressed_left = (event.type == SDL_KEYDOWN);
+                    input.left.is_pressed = (event.type == SDL_KEYDOWN);
                     break;
                 case SDLK_RIGHT:
-                    pressed_right = (event.type == SDL_KEYDOWN);
+                    input.right.is_pressed = (event.type == SDL_KEYDOWN);
                     break;
             }
         }
 
+        // Update
+        if (input.up.is_pressed)    text_rect.y -= 1;
+        if (input.down.is_pressed)  text_rect.y += 1;
+        if (input.left.is_pressed)  text_rect.x -= 1;
+        if (input.right.is_pressed) text_rect.x += 1;
+        
+        // Render
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
         SDL_RenderPresent(renderer);
@@ -92,7 +115,7 @@ int main(int argc, char *argv[]) {
         SDL_RenderCopy(renderer, screen, NULL, NULL);
         SDL_RenderPresent(renderer);
         */
-        SDL_Delay(14);
+        SDL_Delay(32);
     }
 
     return 0;
