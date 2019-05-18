@@ -52,6 +52,10 @@ void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
     SDL_Texture *texture;
     int width, height;
     auto surface = TTF_RenderGlyph_Shaded(font, ch, fg, bg);
+    defer {
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
+    };
     if (surface == nullptr) {
         SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
         SDL_RenderFillRect(renderer, &rect);
@@ -60,7 +64,6 @@ void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
     assert(texture);
     width = surface->w;
     height = surface->h;
-    SDL_FreeSurface(surface);
     SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
     SDL_RenderCopy(renderer, texture, nullptr, &rect);
 }
@@ -217,6 +220,7 @@ int main(int argc, char *argv[]) {
         for (size_t y = 0; y < ch_.size(); ++y) {
             for (size_t x = 0; x < ch_[y].size(); ++x) {
                 const auto &ch = ch_[y][x];
+                if (ch == '\n') continue;
                 if (y == cursor.line && x == cursor.offset) {
                     render_glyph(renderer, font, ch, bg, fg, x, y, glyph_width, glyph_height);
                     cursor_rendered = true;
