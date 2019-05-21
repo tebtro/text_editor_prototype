@@ -217,22 +217,24 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        /*
                         if (cursor > 0) {
                             cursor--;
-                            if (buffer[cursor] == '\n' && cursor > 0) cursor--;
+                            gap_buffer.set_point(cursor);
+                            if (gap_buffer.get_char() == '\n' && cursor > 0) {
+                                cursor--;
+                                gap_buffer.set_point(cursor);
+                            }
                         }
-                        */
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        /*
-                        if (cursor < strlen(buffer) - 1) {
+                        if (cursor < gap_buffer.sizeof_buffer() - 1) {
                             cursor++;
-                            if (buffer[cursor] == '\n') cursor++;
-                            if (cursor >= strlen(buffer)) cursor -= 2;
+                            gap_buffer.set_point(cursor);
+                            if (gap_buffer.get_char() == '\n')   cursor++;
+                            if (cursor >= gap_buffer.sizeof_buffer())   cursor -= 2;
+                            gap_buffer.set_point(cursor);
                         }
-                        */
                     } break;
                 }
                 break;
@@ -270,7 +272,11 @@ int main(int argc, char *argv[]) {
                 offset = 0;
                 continue;
             }
-            render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
+            if (i == cursor) {
+                render_glyph(renderer, font, c, bg, fg, offset, line, glyph_width, glyph_height);
+            } else {
+                render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
+            }
             offset++;
         }
         SDL_SetRenderTarget(renderer, nullptr);
