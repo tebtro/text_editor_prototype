@@ -25,18 +25,18 @@
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
-struct Game_Button_State {
+struct Button_State {
     b32 is_pressed;
 };
 
-struct Game_Controller_Input {
+struct Keyboard_Input {
     union {
-        Game_Button_State buttons[4];
+        Button_State buttons[4];
         struct {
-            Game_Button_State up;
-            Game_Button_State down;
-            Game_Button_State left;
-            Game_Button_State right;
+            Button_State up;
+            Button_State down;
+            Button_State left;
+            Button_State right;
         };
     };
 };
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
         // SDL_DestroyTexture(text_texture);
     };
 
-    Game_Controller_Input input = {};
+    Keyboard_Input input = {};
 
     std::vector<std::vector<char>> ch_ = {{'H', 'e', 'l', 'l', 'o'}};
     ch_.push_back({});
