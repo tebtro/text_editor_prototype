@@ -1,2 +1,3 @@
 * todos [0/1] [0%]
 - [ ] render only visible area
+- [ ] cursor save offset, if you only move up or down, and not left right, you should keep the offset also between lines with different length

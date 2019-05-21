@@ -121,15 +121,6 @@ int main(int argc, char *argv[]) {
     file = fopen(input_file_path, "r"); // test.jai demo.jai
     defer { fclose(file); };
     Gap_Buffer gap_buffer = Gap_Buffer::make_gap_buffer(file);
-#if 0
-    gap_buffer.print_buffer();
-#endif
-#if 0
-    FILE *out;
-    out = fopen("../tests/test_out.jai", "wb");
-    defer { fclose(out); };
-    gap_buffer.save_buffer_to_file(out, gap_buffer.sizeof_buffer() / sizeof(char));
-#endif
     
     SDL_Color fg = {255, 255, 255, 0};
     SDL_Color bg = {0, 0, 0, 0};
@@ -154,16 +145,16 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_RETURN: {
                         if (event.type != SDL_KEYDOWN) break;
-                        /*
-                        if (cursor.line + 2 > ch_.size()) {
-                            ch_.push_back({});
-                            cursor.line++;
-                            cursor.offset = 0;
-                        }
-                        */
+                        gap_buffer.set_point(cursor);
+                        gap_buffer.put_char('\n');
+                        cursor = gap_buffer.point_offset();
                     } break;
                     case SDLK_BACKSPACE: {
                         if (event.type != SDL_KEYDOWN) break;
+                        if (cursor == 0)   break;
+                        gap_buffer.set_point(cursor - 1);
+                        gap_buffer.delete_chars(1);
+                        cursor = gap_buffer.point_offset();
                         /*
                         if (cursor.line == 0 && cursor.offset == 0) break;
                         if (cursor.offset > 0) {
@@ -240,32 +231,33 @@ int main(int argc, char *argv[]) {
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor > 0) {
-                            cursor--;
-                            gap_buffer.set_point(cursor);
-                            if (gap_buffer.get_char() == '\n' && cursor > 0) {
-                                cursor--;
-                                gap_buffer.set_point(cursor);
-                            }
+                            // gap_buffer.set_point(cursor);
+                            gap_buffer.previous_char();
+                            cursor = gap_buffer.point_offset();
+                            if (gap_buffer.get_char() == '\n' && cursor > 0)   gap_buffer.previous_char();
+                            cursor = gap_buffer.point_offset();
                         }
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor < gap_buffer.sizeof_buffer() - 1) {
-                            cursor++;
-                            gap_buffer.set_point(cursor);
-                            if (gap_buffer.get_char() == '\n')   cursor++;
+                            // gap_buffer.set_point(cursor);
+                            gap_buffer.next_char();
+                            if (gap_buffer.get_char() == '\n')   gap_buffer.next_char();
+                            cursor = gap_buffer.point_offset();
+                            /*
                             if (cursor >= gap_buffer.sizeof_buffer())   cursor -= 2;
                             gap_buffer.set_point(cursor);
+                            */
                         }
                     } break;
                 }
                 break;
             }
             if (event.type == SDL_TEXTINPUT) {
-                /*
-                ch_[cursor.line].push_back(event.text.text[0]);
-                cursor.offset++;
-                */
+                gap_buffer.set_point(cursor);
+                gap_buffer.put_char(event.text.text[0]);
+                cursor = gap_buffer.point_offset();
                 break;
             }
         }
@@ -283,7 +275,7 @@ int main(int argc, char *argv[]) {
         u64 i = 0;
         char *temp = gap_buffer.buffer;
         for (int i = 0; temp < gap_buffer.buffer_end; i++) {
-            if (i == cursor) render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
+            // if (temp - 1 == gap_buffer.point)   render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
             if ((temp >= gap_buffer.gap_start) && (temp < gap_buffer.gap_end)) {
                 temp++;
                 continue;
@@ -294,7 +286,7 @@ int main(int argc, char *argv[]) {
                 offset = 0;
                 continue;
             }
-            if (i == cursor) {
+            if (temp - 1 == gap_buffer.point) {
                 render_glyph(renderer, font, c, bg, fg, offset, line, glyph_width, glyph_height);
             } else {
                 render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
@@ -308,6 +300,16 @@ int main(int argc, char *argv[]) {
         
         SDL_Delay(32);
     }
+
+#if 1
+    gap_buffer.print_buffer();
+#endif
+#if 0
+    FILE *out;
+    out = fopen("../tests/test_out.jai", "wb");
+    defer { fclose(out); };
+    gap_buffer.save_buffer_to_file(out, gap_buffer.sizeof_buffer() / sizeof(char));
+#endif
 
     return 0;
 }

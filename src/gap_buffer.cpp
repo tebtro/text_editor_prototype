@@ -36,7 +36,7 @@ void Gap_Buffer::destroy() {
 b32 Gap_Buffer::copy_bytes(char *destination, char *source, u64 length) {
     if ((destination == source) || (length == 0))   return true;
 
-    // if we're moving the character toward the fron of the buffer
+    // if we're moving the character toward the front of the buffer
     if (source > destination) {
         // check that we don't go beyond the buffer
         if ((source + length) >= buffer_end)   return false;
@@ -94,7 +94,7 @@ void Gap_Buffer::expand_gap(u64 size) {
 }
 
 void Gap_Buffer::move_gap_to_point() {
-    if (point == gap_start) return;
+    if (point == gap_start)   return;
     if (point == gap_end) {
         point = gap_start;
         return;
@@ -128,7 +128,7 @@ u64 Gap_Buffer::point_offset() {
 void Gap_Buffer::set_point(u64 offset) {
     point = buffer + offset;
     if (point > gap_start) {
-        point += gap_end - gap_start;
+        point += (gap_end - gap_start);
     }
 }
 
@@ -189,6 +189,9 @@ void Gap_Buffer::print_buffer() {
         if ((temp >= gap_start) && (temp < gap_end)) {
             std::cout << "_";
             temp++;
+        } else if (temp == point) {
+            std::cout << "#";
+            temp++;
         } else {
             std::cout << *(temp++);
         }
@@ -228,6 +231,7 @@ Gap_Buffer Gap_Buffer::make_gap_buffer(FILE *file, int gap_size) {
     u64 file_size = file_stat.st_size;
 
     Gap_Buffer gap_buffer = {};
+    gap_buffer.gap_size = gap_size;
     gap_buffer.init_buffer(file_size + gap_size);
 
     gap_buffer.move_gap_to_point();
