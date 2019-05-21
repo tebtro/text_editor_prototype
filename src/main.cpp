@@ -66,6 +66,26 @@ void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
 }
 
 int main(int argc, char *argv[]) {
+    char *input_file_path = nullptr;
+
+    for (int i = 1; i < argc; ++i) {
+        printf("argument[%d]: %s\n", i, argv[i]);
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            // @todo print_help(argv[0]);
+            return 0;
+        } else if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--input-file-path") == 0) {
+            input_file_path = argv[++i];
+        } else {
+            if (!input_file_path) {
+                input_file_path = argv[i];
+            }
+        }
+    }
+    if (!input_file_path) {
+        printf("error: no input file!\n");
+        return -1;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -98,7 +118,7 @@ int main(int argc, char *argv[]) {
     u64 cursor = 0; // offset from start of buffer
 
     FILE *file;
-    file = fopen("../tests/test.jai", "r");
+    file = fopen(input_file_path, "r"); // test.jai demo.jai
     defer { fclose(file); };
     Gap_Buffer gap_buffer = Gap_Buffer::make_gap_buffer(file);
 #if 0
