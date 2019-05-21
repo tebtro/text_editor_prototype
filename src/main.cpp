@@ -304,11 +304,11 @@ int main(int argc, char *argv[]) {
 #if 1
     gap_buffer.print_buffer();
 #endif
-#if 0
+#if 1
     FILE *out;
     out = fopen("../tests/test_out.jai", "wb");
     defer { fclose(out); };
-    gap_buffer.save_buffer_to_file(out, gap_buffer.sizeof_buffer() / sizeof(char));
+    gap_buffer.save_buffer_to_file(out);
 #endif
 
     return 0;

@@ -183,41 +183,6 @@ void Gap_Buffer::insert_string(char *string, u64 length) {
     } while (length--);
 }
 
-void Gap_Buffer::print_buffer() {
-    char *temp = buffer;
-    while (temp < buffer_end) {
-        if ((temp >= gap_start) && (temp < gap_end)) {
-            std::cout << "_";
-            temp++;
-        } else if (temp == point) {
-            std::cout << "#";
-            temp++;
-        } else {
-            std::cout << *(temp++);
-        }
-    }
-    std::cout << std::endl;
-}
-
-b32 Gap_Buffer::save_buffer_to_file(FILE *file, u64 bytes) {
-    if (!bytes) return true;
-    if (point == gap_start) {
-        point = gap_end;
-    }
-    if ((gap_start > point) && (gap_start < (point + bytes)) && (gap_start != gap_end)) {
-        if (gap_start - point != fwrite(point, 1, gap_start - point, file)) {
-            return false;
-        }
-        if ((bytes - (gap_start - point)) != fwrite(gap_end, 1, bytes - (gap_start - point), file)) {
-            return true;
-        }
-
-        return true;
-    } else {
-        return bytes == fwrite(point, 1, bytes, file);
-    }
-}
-
 Gap_Buffer Gap_Buffer::make_gap_buffer(int gap_size) {
     Gap_Buffer gap_buffer = {};
     gap_buffer.gap_size = gap_size;
@@ -240,4 +205,47 @@ Gap_Buffer Gap_Buffer::make_gap_buffer(FILE *file, int gap_size) {
     gap_buffer.gap_start += amount;
     
     return gap_buffer; 
+}
+
+void Gap_Buffer::print_buffer() {
+    char *temp = buffer;
+    while (temp < buffer_end) {
+        if ((temp >= gap_start) && (temp < gap_end)) {
+            std::cout << "_";
+            temp++;
+        } else if (temp == point) {
+            std::cout << "#";
+            temp++;
+        } else {
+            std::cout << *(temp++);
+        }
+    }
+    std::cout << std::endl;
+}
+
+b32 Gap_Buffer::save_buffer_to_file(FILE *file) {
+    u64 bytes = sizeof_buffer() / sizeof(char);
+    if (!bytes) return true;
+
+    fwrite(buffer, sizeof(char), gap_start - buffer, file);
+    fwrite(gap_end, sizeof(char), buffer_end - gap_end, file);
+    return true;
+
+    /*
+    if (point == gap_start) {
+        point = gap_end;
+    }
+    if ((gap_start > point) && (gap_start < (point + bytes)) && (gap_start != gap_end)) {
+        if (gap_start - point != fwrite(point, 1, gap_start - point, file)) {
+            return false;
+        }
+        if ((bytes - (gap_start - point)) != fwrite(gap_end, 1, bytes - (gap_start - point), file)) {
+            return true;
+        }
+
+        return true;
+    } else {
+        return bytes == fwrite(point, 1, bytes, file);
+    }
+    */
 }

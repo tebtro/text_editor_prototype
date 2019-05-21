@@ -46,7 +46,7 @@ struct Gap_Buffer {
     void insert_string(char *string, u64 length);
 
     void print_buffer();
-    b32 save_buffer_to_file(FILE *file, u64 bytes);
+    b32 save_buffer_to_file(FILE *file);
     
     internal Gap_Buffer make_gap_buffer(int gap_size = DEFAULT_GAP_SIZE);
     internal Gap_Buffer make_gap_buffer(FILE *file, int gap_size = DEFAULT_GAP_SIZE);
