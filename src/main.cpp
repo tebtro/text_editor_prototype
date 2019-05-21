@@ -22,6 +22,8 @@
 #include "iml_types.h"
 #include "iml_general.h"
 
+#include "gap_buffer.h"
+
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
@@ -79,7 +81,7 @@ int main(int argc, char *argv[]) {
         TTF_Quit();
     };
 
-    TTF_Font *font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 32);
+    TTF_Font *font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
     assert(font);
     int glyph_width;
     {
@@ -89,20 +91,25 @@ int main(int argc, char *argv[]) {
     }
     int glyph_height = TTF_FontLineSkip(font) + 1;
     SDL_Color text_color = {255, 255, 255, 0};
-    /*
-    SDL_Surface *text_surface = TTF_RenderText_Solid(font, "Hello Sailor!", text_color);
-    SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-    SDL_Rect text_rect = {(SCREEN_WIDTH - text_surface->w) / 2, (SCREEN_HEIGHT - (int)(text_surface->h * 1.5f)) / 2, text_surface->w, text_surface->h};
-    */
-    defer {
-        TTF_CloseFont(font);
-        // SDL_DestroyTexture(text_texture);
-    };
+    defer { TTF_CloseFont(font); };
 
     Keyboard_Input input = {};
 
-    char *buffer = "\nHello\nSailor\nThis is a text editor\nJon\n";
     u64 cursor = 0; // offset from start of buffer
+
+    FILE *file;
+    file = fopen("../tests/test.jai", "r");
+    defer { fclose(file); };
+    Gap_Buffer gap_buffer = Gap_Buffer::make_gap_buffer(file);
+#if 0
+    gap_buffer.print_buffer();
+#endif
+#if 0
+    FILE *out;
+    out = fopen("../tests/test_out.jai", "wb");
+    defer { fclose(out); };
+    gap_buffer.save_buffer_to_file(out, gap_buffer.sizeof_buffer() / sizeof(char));
+#endif
     
     SDL_Color fg = {255, 255, 255, 0};
     SDL_Color bg = {0, 0, 0, 0};
@@ -153,6 +160,7 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_UP: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         u64 line_start = 0;
                         u64 offset = 0;
                         b32 found_offset = false;
@@ -174,9 +182,11 @@ int main(int argc, char *argv[]) {
                                 if (cursor >= line_start) cursor = line_start - 1;
                             }
                         }
+                        */
                     } break;
                     case SDLK_DOWN: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         u64 offset = 0;
                         b32 found_offset = false;
                         for (u64 i = cursor; i-- > 0;) {
@@ -203,21 +213,26 @@ int main(int argc, char *argv[]) {
                             }
                         }
                         if (cursor >= strlen(buffer)) cursor = strlen(buffer) - 1;
+                        */
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         if (cursor > 0) {
                             cursor--;
                             if (buffer[cursor] == '\n' && cursor > 0) cursor--;
                         }
+                        */
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         if (cursor < strlen(buffer) - 1) {
                             cursor++;
                             if (buffer[cursor] == '\n') cursor++;
                             if (cursor >= strlen(buffer)) cursor -= 2;
                         }
+                        */
                     } break;
                 }
                 break;
@@ -241,19 +256,21 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
         u64 line = 0;
         u64 offset = 0;
-        for (int i = 0; i < strlen(buffer); i++) {
-            char c = buffer[i];
-            if (c == '\n') { // @todo handle soft line breaks, ...
-                if (i == cursor) render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
+        u64 i = 0;
+        char *temp = gap_buffer.buffer;
+        for (int i = 0; temp < gap_buffer.buffer_end; i++) {
+            if (i == cursor) render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
+            if ((temp >= gap_buffer.gap_start) && (temp < gap_buffer.gap_end)) {
+                temp++;
+                continue;
+            }
+            char c = *(temp++);
+            if (c == '\n') { // @todo handle soft line breaks (\r), ...
                 line++;
                 offset = 0;
                 continue;
             }
-            if (i == cursor) {
-                render_glyph(renderer, font, c, bg, fg, offset, line, glyph_width, glyph_height);
-            } else {
-                render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
-            }
+            render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
             offset++;
         }
         SDL_SetRenderTarget(renderer, nullptr);
