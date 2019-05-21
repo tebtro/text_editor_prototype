@@ -50,6 +50,8 @@ struct Gap_Buffer {
     
     internal Gap_Buffer make_gap_buffer(int gap_size = DEFAULT_GAP_SIZE);
     internal Gap_Buffer make_gap_buffer(FILE *file, int gap_size = DEFAULT_GAP_SIZE);
+
+    // Gap_Buffer(const Gap_Buffer& tb);   CopyConstructor needed ???
 };
 
 #endif

@@ -180,12 +180,12 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_UP: {
                         if (event.type != SDL_KEYDOWN) break;
-                        /*
                         u64 line_start = 0;
                         u64 offset = 0;
                         b32 found_offset = false;
                         for (u64 i = cursor; i-- > 0;) {
-                            if (buffer[i] == '\n') {
+                            gap_buffer.set_point(i);
+                            if (gap_buffer.get_char() == '\n') {
                                 if (!found_offset) {
                                     line_start = i;
                                     offset = cursor - i;
@@ -201,16 +201,16 @@ int main(int argc, char *argv[]) {
                                 cursor = offset - 1;
                                 if (cursor >= line_start) cursor = line_start - 1;
                             }
+                            gap_buffer.set_point(cursor);
                         }
-                        */
                     } break;
                     case SDLK_DOWN: {
                         if (event.type != SDL_KEYDOWN) break;
-                        /*
                         u64 offset = 0;
                         b32 found_offset = false;
                         for (u64 i = cursor; i-- > 0;) {
-                            if (buffer[i] == '\n' || i == 0) {
+                            gap_buffer.set_point(i);
+                            if (gap_buffer.get_char() == '\n' || i == 0) {
                                 offset = cursor - i - 1;
                                 found_offset = true;
                                 break;
@@ -218,8 +218,9 @@ int main(int argc, char *argv[]) {
                         }
                         if (!found_offset && cursor != 0) break;
                         u64 next_line = 0;
-                        for (u64 i = cursor; i < strlen(buffer); i++) {
-                            if (buffer[i] == '\n') {
+                        for (u64 i = cursor; i < gap_buffer.sizeof_buffer(); i++) {
+                            gap_buffer.set_point(i);
+                            if (gap_buffer.get_char() == '\n') {
                                 next_line = i + 1;
                                 break;
                             }
@@ -227,13 +228,14 @@ int main(int argc, char *argv[]) {
                         cursor = next_line;
                         for (u64 i = next_line; i < (next_line + offset); i++) {
                             cursor = i + 1;
-                            if (buffer[i] == '\n') {
+                            gap_buffer.set_point(i);
+                            if (gap_buffer.get_char() == '\n') {
                                 cursor--;
                                 break;
                             }
                         }
-                        if (cursor >= strlen(buffer)) cursor = strlen(buffer) - 1;
-                        */
+                        if (cursor >= gap_buffer.sizeof_buffer())   cursor = gap_buffer.sizeof_buffer() - 1;
+                        gap_buffer.set_point(cursor);
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
