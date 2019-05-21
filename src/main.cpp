@@ -41,11 +41,6 @@ struct Keyboard_Input {
     };
 };
 
-struct Cursor {
-    u64 line;
-    u64 offset;
-};
-
 void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
                   char ch, SDL_Color fg, SDL_Color bg,
                   int x, int y, int glyph_width, int glyph_height) {
@@ -106,19 +101,8 @@ int main(int argc, char *argv[]) {
 
     Keyboard_Input input = {};
 
-    std::vector<std::vector<char>> ch_ = {{'H', 'e', 'l', 'l', 'o'}};
-    ch_.push_back({});
-    ch_[1].push_back('S');
-    ch_[1].push_back('a');
-    ch_[1].push_back('i');
-    ch_[1].push_back('l');
-    ch_[1].push_back('o');
-    ch_[1].push_back('r');
-    ch_[1].push_back('!');
-
-    Cursor cursor;
-    cursor.line = ch_.size() - 1;
-    cursor.offset = ch_[cursor.line].size();
+    char *buffer = "\nHello\nSailor\nThis is a text editor\nJon\n";
+    u64 cursor = 0; // offset from start of buffer
     
     SDL_Color fg = {255, 255, 255, 0};
     SDL_Color bg = {0, 0, 0, 0};
@@ -143,14 +127,17 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_RETURN: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         if (cursor.line + 2 > ch_.size()) {
                             ch_.push_back({});
                             cursor.line++;
                             cursor.offset = 0;
                         }
+                        */
                     } break;
                     case SDLK_BACKSPACE: {
                         if (event.type != SDL_KEYDOWN) break;
+                        /*
                         if (cursor.line == 0 && cursor.offset == 0) break;
                         if (cursor.offset > 0) {
                             ch_[cursor.line].erase(ch_[cursor.line].begin() + --cursor.offset);
@@ -162,49 +149,84 @@ int main(int argc, char *argv[]) {
                             cursor.offset = ch_[cursor.line].size();
                             // ch_[cursor.line].erase(ch_[cursor.line].begin() + --cursor.offset);
                         }
+                        */
                     } break;
                     case SDLK_UP: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor.line > 0) {
-                            cursor.line--;
-                            if (ch_[cursor.line].size() < cursor.offset) cursor.offset = ch_[cursor.line].size();
+                        u64 line_start = 0;
+                        u64 offset = 0;
+                        b32 found_offset = false;
+                        for (u64 i = cursor; i-- > 0;) {
+                            if (buffer[i] == '\n') {
+                                if (!found_offset) {
+                                    line_start = i;
+                                    offset = cursor - i;
+                                    found_offset = true;
+                                    continue;
+                                } else {
+                                    cursor = i + offset;
+                                    if (cursor >= line_start) cursor = line_start - 1;
+                                    break;
+                                }
+                            }
+                            if (found_offset && i == 0) {
+                                cursor = offset - 1;
+                                if (cursor >= line_start) cursor = line_start - 1;
+                            }
                         }
                     } break;
                     case SDLK_DOWN: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor.line < ch_.size() - 1) {
-                            cursor.line++;
-                            if (ch_[cursor.line].size() < cursor.offset) cursor.offset = ch_[cursor.line].size();
+                        u64 offset = 0;
+                        b32 found_offset = false;
+                        for (u64 i = cursor; i-- > 0;) {
+                            if (buffer[i] == '\n' || i == 0) {
+                                offset = cursor - i - 1;
+                                found_offset = true;
+                                break;
+                            }
                         }
+                        if (!found_offset && cursor != 0) break;
+                        u64 next_line = 0;
+                        for (u64 i = cursor; i < strlen(buffer); i++) {
+                            if (buffer[i] == '\n') {
+                                next_line = i + 1;
+                                break;
+                            }
+                        }
+                        cursor = next_line;
+                        for (u64 i = next_line; i < (next_line + offset); i++) {
+                            cursor = i + 1;
+                            if (buffer[i] == '\n') {
+                                cursor--;
+                                break;
+                            }
+                        }
+                        if (cursor >= strlen(buffer)) cursor = strlen(buffer) - 1;
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor.offset > 0) {
-                            cursor.offset--;
-                        } else if (cursor.offset == 0 && cursor.line > 0) {
-                            if (cursor.line > 0) {
-                                cursor.line--;
-                            }
-                            cursor.offset = ch_[cursor.line].size();
+                        if (cursor > 0) {
+                            cursor--;
+                            if (buffer[cursor] == '\n' && cursor > 0) cursor--;
                         }
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor.line < ch_.size()) {
-                            if (cursor.offset < ch_[cursor.line].size()) {
-                                cursor.offset++;
-                            } else if (cursor.line < ch_.size() - 1){
-                                cursor.line++;
-                                cursor.offset = 0;
-                            }
+                        if (cursor < strlen(buffer) - 1) {
+                            cursor++;
+                            if (buffer[cursor] == '\n') cursor++;
+                            if (cursor >= strlen(buffer)) cursor -= 2;
                         }
                     } break;
                 }
                 break;
             }
             if (event.type == SDL_TEXTINPUT) {
+                /*
                 ch_[cursor.line].push_back(event.text.text[0]);
                 cursor.offset++;
+                */
                 break;
             }
         }
@@ -217,39 +239,28 @@ int main(int argc, char *argv[]) {
 
         SDL_SetRenderTarget(renderer, texture);
         SDL_RenderClear(renderer);
-        for (size_t y = 0; y < ch_.size(); ++y) {
-            for (size_t x = 0; x < ch_[y].size(); ++x) {
-                const auto &ch = ch_[y][x];
-                if (ch == '\n') continue;
-                if (y == cursor.line && x == cursor.offset) {
-                    render_glyph(renderer, font, ch, bg, fg, x, y, glyph_width, glyph_height);
-                    cursor_rendered = true;
-                } else {
-                    render_glyph(renderer, font, ch, fg, bg, x, y, glyph_width, glyph_height);
-                }
+        u64 line = 0;
+        u64 offset = 0;
+        for (int i = 0; i < strlen(buffer); i++) {
+            char c = buffer[i];
+            if (c == '\n') { // @todo handle soft line breaks, ...
+                if (i == cursor) render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
+                line++;
+                offset = 0;
+                continue;
             }
+            if (i == cursor) {
+                render_glyph(renderer, font, c, bg, fg, offset, line, glyph_width, glyph_height);
+            } else {
+                render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
+            }
+            offset++;
         }
-        if (!cursor_rendered) render_glyph(renderer, font, ' ', bg, fg, cursor.offset, cursor.line, glyph_width, glyph_height);
         SDL_SetRenderTarget(renderer, nullptr);
         SDL_Rect r = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
         SDL_RenderCopy(renderer, texture, nullptr, &r);
         SDL_RenderPresent(renderer);
         
-        /*
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-        SDL_RenderPresent(renderer);
-        */
-        /*
-        SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0xFF, 0xFF, 0xFF));
-        SDL_UpdateWindowSurface(window);
-        */
-        /*
-        SDL_UpdateTexture(screen, NULL, screen_pixels, SCREEN_WIDTH * sizeof(u32));
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, screen, NULL, NULL);
-        SDL_RenderPresent(renderer);
-        */
         SDL_Delay(32);
     }
 
