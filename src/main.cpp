@@ -43,7 +43,7 @@ struct Keyboard_Input {
     };
 };
 
-void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
+void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
                   char ch, SDL_Color fg, SDL_Color bg,
                   int x, int y, int glyph_width, int glyph_height) {
     SDL_Texture *texture;
@@ -55,14 +55,13 @@ void render_glyph(SDL_Renderer *renderer, TTF_Font *font,
     };
     if (surface == nullptr) {
         SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
-        SDL_RenderFillRect(renderer, &rect);
+        SDL_BlitSurface(NULL, NULL, window_surface, &rect);
     }
-    texture = SDL_CreateTextureFromSurface(renderer, surface);
-    assert(texture);
     width = surface->w;
     height = surface->h;
     SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
-    SDL_RenderCopy(renderer, texture, nullptr, &rect);
+    SDL_Rect rect_font_surface = {0,0,width,height};
+    SDL_BlitSurface(surface, &rect_font_surface , window_surface, &rect);
 }
 
 int main(int argc, char *argv[]) {
@@ -90,12 +89,15 @@ int main(int argc, char *argv[]) {
     TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     assert(window);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
-    assert(renderer);
-    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_Surface *window_surface = SDL_GetWindowSurface(window);
+    assert(window_surface);
+    SDL_Surface *buffer1_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    SDL_Rect buffer1_rect = {0,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
+    SDL_Surface *buffer2_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+    SDL_Rect buffer2_rect = {SCREEN_WIDTH / 2,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
     defer {
-        SDL_DestroyTexture(texture);
-        SDL_DestroyRenderer(renderer);
+        SDL_FreeSurface(buffer1_surface);
+        SDL_FreeSurface(buffer2_surface);
         SDL_DestroyWindow(window);
         SDL_Quit();
         TTF_Quit();
@@ -267,8 +269,8 @@ int main(int argc, char *argv[]) {
         // Render
         b32 cursor_rendered = false;
 
-        SDL_SetRenderTarget(renderer, texture);
-        SDL_RenderClear(renderer);
+        SDL_FillRect(buffer1_surface, NULL, 0x000000);
+        SDL_FillRect(buffer2_surface, NULL, 0x072627);
 
         u64 line = 0;
         u64 offset = 0;
@@ -285,17 +287,17 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             if (temp - 1 == gap_buffer.point) {
-                render_glyph(renderer, font, c, bg, fg, offset, line, glyph_width, glyph_height);
+                render_glyph(buffer1_surface, font, c, cursor_fg, cursor_bg, offset, line, glyph_width, glyph_height);
             } else {
-                render_glyph(renderer, font, c, fg, bg, offset, line, glyph_width, glyph_height);
+                render_glyph(buffer1_surface, font, c, fg, bg, offset, line, glyph_width, glyph_height);
             }
             offset++;
         }
 
-        SDL_SetRenderTarget(renderer, nullptr);
-        SDL_Rect r = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
-        SDL_RenderCopy(renderer, texture, nullptr, &r);
-        SDL_RenderPresent(renderer);
+        SDL_Rect rect_full = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
+        SDL_BlitSurface(buffer1_surface, &rect_full , window_surface, &buffer1_rect);
+        SDL_BlitSurface(buffer2_surface, &rect_full , window_surface, &buffer2_rect);
+        SDL_UpdateWindowSurface(window);
         
         SDL_Delay(32);
     }
