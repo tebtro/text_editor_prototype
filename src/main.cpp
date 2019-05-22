@@ -267,15 +267,13 @@ int main(int argc, char *argv[]) {
         // Render
         b32 cursor_rendered = false;
 
-
         SDL_SetRenderTarget(renderer, texture);
         SDL_RenderClear(renderer);
+
         u64 line = 0;
         u64 offset = 0;
-        u64 i = 0;
         char *temp = gap_buffer.buffer;
         for (int i = 0; temp < gap_buffer.buffer_end; i++) {
-            // if (temp - 1 == gap_buffer.point)   render_glyph(renderer, font, ' ', bg, fg, offset, line, glyph_width, glyph_height);
             if ((temp >= gap_buffer.gap_start) && (temp < gap_buffer.gap_end)) {
                 temp++;
                 continue;
@@ -293,6 +291,7 @@ int main(int argc, char *argv[]) {
             }
             offset++;
         }
+
         SDL_SetRenderTarget(renderer, nullptr);
         SDL_Rect r = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
         SDL_RenderCopy(renderer, texture, nullptr, &r);
@@ -308,6 +307,7 @@ int main(int argc, char *argv[]) {
     FILE *out;
     out = fopen("../tests/test_out.jai", "wb");
     defer { fclose(out); };
+    gap_buffer.set_point(0);
     gap_buffer.save_buffer_to_file(out);
 #endif
 
