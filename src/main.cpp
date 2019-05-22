@@ -21,6 +21,7 @@
 
 #include "iml_types.h"
 #include "iml_general.h"
+#include "iml_array.h"
 
 #include "gap_buffer.h"
 
@@ -43,6 +44,51 @@ struct Keyboard_Input {
     };
 };
 
+struct Theme {
+    TTF_Font *font;
+    int glyph_width;
+    int glyph_height;
+    SDL_Color fg;
+    SDL_Color bg;
+    SDL_Color cursor_fg;
+    SDL_Color cursor_bg;
+};
+
+struct Buffer {
+    Gap_Buffer gap_buffer;
+    // file info
+    // ...
+};
+
+struct Layout;
+
+struct Window {
+    Layout *parent_layout;
+    Buffer *buffer;
+    // cursor should maybe be on buffer
+    u64 cursor = 0; // offset from start of buffer
+
+    SDL_Rect rect;
+    SDL_Surface *surface;
+};
+
+namespace Layout_Orientation {
+    enum {
+        Horizontal,
+        Vertical,
+    };
+}
+
+struct Layout {
+    enum32(Layout_Orientation) orientation;
+    Array<Layout *> children;
+
+    Layout *parent_layout = nullptr;
+    Window *window = nullptr;
+
+    SDL_Rect rect;
+};
+
 void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
                   char ch, SDL_Color fg, SDL_Color bg,
                   int x, int y, int glyph_width, int glyph_height) {
@@ -53,7 +99,7 @@ void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
         SDL_FreeSurface(surface);
         SDL_DestroyTexture(texture);
     };
-    if (surface == nullptr) {
+    if (!surface) {
         SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
         SDL_BlitSurface(NULL, NULL, window_surface, &rect);
     }
@@ -62,6 +108,84 @@ void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
     SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
     SDL_Rect rect_font_surface = {0,0,width,height};
     SDL_BlitSurface(surface, &rect_font_surface , window_surface, &rect);
+}
+
+// @todo absolute path
+Buffer *open_file(Array<Buffer *> *buffers, char *input_file_path) {
+    FILE *file;
+    file = fopen(input_file_path, "r"); // test.jai demo.jai
+    defer { fclose(file); };
+
+    Buffer *buffer = (Buffer *) calloc(1, sizeof(Buffer));
+    buffer->gap_buffer = Gap_Buffer::make_gap_buffer(file);
+    buffers->push(buffer);
+
+    return buffer;
+}
+
+void resize_window(Window *window, int width, int height) {
+    SDL_Rect rect = {0, 0, width, height};
+    window->rect = rect;
+    window->surface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
+}
+
+Window *make_window(Array<Window *> *windows, int width, int height) {
+    Window *window = (Window *) calloc(1, sizeof(Window));
+    windows->push(window);
+    resize_window(window, width, height);
+    return window;
+}
+
+Layout *make_layout(Array<Layout *> *layouts, int x, int y, int width, int height, Window *window) {
+    Layout *layout = (Layout *) calloc(1, sizeof(Layout));
+    layouts->push(layout);
+    layout->children = {};
+    SDL_Rect rect = {x, y, width, height};
+    layout->rect = rect;
+    resize_window(window, width, height);
+    layout->window = window;
+    layout->window->parent_layout = layout;
+    return layout;
+}
+
+void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
+    if (layout->window) {
+        Gap_Buffer *gap_buffer = &layout->window->buffer->gap_buffer;
+
+        SDL_FillRect(layout->window->surface, NULL, 0x000000);
+        u64 line = 0;
+        u64 offset = 0;
+        char *temp = gap_buffer->buffer;
+        for (int i = 0; temp < gap_buffer->buffer_end; i++) {
+            if ((temp >= gap_buffer->gap_start) && (temp < gap_buffer->gap_end)) {
+                temp++;
+                continue;
+            }
+            char c = *(temp++);
+            if (c == '\n') { // @todo handle soft line breaks (\r), ...
+                line++;
+                offset = 0;
+                continue;
+            }
+            if (temp - 1 == gap_buffer->point) {
+                render_glyph(layout->window->surface, theme->font, c, theme->cursor_fg, theme->cursor_bg,
+                             offset, line, theme->glyph_width, theme->glyph_height);
+            } else {
+                render_glyph(layout->window->surface, theme->font, c, theme->fg, theme->bg,
+                             offset, line, theme->glyph_width, theme->glyph_height);
+            }
+            offset++;
+        }
+        SDL_Rect rect = {0,0,layout->window->rect.w,layout->window->rect.h};
+        SDL_BlitSurface(layout->window->surface, &rect,
+                        screen_surface, &layout->rect);
+        return;
+    }
+
+    
+    for (int i = 0; i < layout->children.count; ++i) {
+        render_layout(layout->children.array[i], screen_surface, theme);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -89,15 +213,72 @@ int main(int argc, char *argv[]) {
     TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     assert(window);
-    SDL_Surface *window_surface = SDL_GetWindowSurface(window);
-    assert(window_surface);
+    SDL_Surface *screen_surface = SDL_GetWindowSurface(window);
+    assert(screen_surface);
+
+    Array<Window *> windows = {};
+    defer {
+        for (int i = 0; i < windows.count; ++i) {
+            SDL_FreeSurface(windows.array[i]->surface);
+            free(windows.array[i]);
+        }
+    };
+    Array<Buffer *> buffers = {};
+    defer {
+        for (int i = 0; i < buffers.count; ++i) {
+            free(buffers.array[i]);
+        }
+    };
+    Array<Layout *> layouts = {};
+    defer {
+        for (int i = 0; i < layouts.count; ++i) {
+            free(layouts.array[i]);
+        }
+    };
+
+    Layout layout = {};
+    layout.children = {};
+    SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    layout.rect = rect;
+    Window *layout_window = make_window(&windows, SCREEN_WIDTH, SCREEN_HEIGHT);
+    layout.window = layout_window;
+    layout.window->parent_layout = &layout;
+
+
+    Buffer *buffer = open_file(&buffers, input_file_path);
+    layout.window->buffer = buffer;
+    
+    Buffer *buffer2 = open_file(&buffers, "../tests/test.jai");
+
+    { // Split windows horizontally
+        layout.orientation = Layout_Orientation::Horizontal;
+        Window *left_window = layout.window;
+        layout.window = nullptr;
+
+        Layout *left_layout = make_layout(&layouts, layout.rect.x, layout.rect.y, layout.rect.w / 2, layout.rect.h, left_window);
+        
+        Window *right_window = make_window(&windows, layout.rect.w / 2, layout.rect.h);
+        right_window->buffer = left_window->buffer;
+        Layout *right_layout = make_layout(&layouts, layout.rect.x + (layout.rect.w / 2), layout.rect.y,
+                                           layout.rect.w / 2, layout.rect.h, right_window);
+
+        layout.children.push(left_layout);
+        layout.children.push(right_layout);
+
+        // change_buffer(window, buffer2);
+        right_window->buffer = buffer2; // left_window->buffer;
+    }
+    
+    Window *current_window = layout.children.array[0]->window;
+    Gap_Buffer *current_gap_buffer = &layout.children.array[0]->window->buffer->gap_buffer;
+
+    /*
     SDL_Surface *buffer1_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
     SDL_Rect buffer1_rect = {0,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
     SDL_Surface *buffer2_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
     SDL_Rect buffer2_rect = {SCREEN_WIDTH / 2,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
+    */
     defer {
-        SDL_FreeSurface(buffer1_surface);
-        SDL_FreeSurface(buffer2_surface);
         SDL_DestroyWindow(window);
         SDL_Quit();
         TTF_Quit();
@@ -112,23 +293,26 @@ int main(int argc, char *argv[]) {
         glyph_width = advance;
     }
     int glyph_height = TTF_FontLineSkip(font) + 1;
-    SDL_Color text_color = {255, 255, 255, 0};
     defer { TTF_CloseFont(font); };
 
     Keyboard_Input input = {};
 
     u64 cursor = 0; // offset from start of buffer
-
-    FILE *file;
-    file = fopen(input_file_path, "r"); // test.jai demo.jai
-    defer { fclose(file); };
-    Gap_Buffer gap_buffer = Gap_Buffer::make_gap_buffer(file);
     
     SDL_Color fg = {255, 255, 255, 0};
     SDL_Color bg = {0, 0, 0, 0};
 
     SDL_Color cursor_fg = bg;
     SDL_Color cursor_bg = fg;
+
+    Theme theme = {};
+    theme.font = font;
+    theme.glyph_width  = glyph_width;
+    theme.glyph_height = glyph_height;
+    theme.fg = fg;
+    theme.bg = bg;
+    theme.cursor_fg = bg;
+    theme.cursor_bg = fg;
     
     b32 running = true;
     SDL_StartTextInput();
@@ -147,16 +331,16 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_RETURN: {
                         if (event.type != SDL_KEYDOWN) break;
-                        gap_buffer.set_point(cursor);
-                        gap_buffer.put_char('\n');
-                        cursor = gap_buffer.point_offset();
+                        current_gap_buffer->set_point(cursor);
+                        current_gap_buffer->put_char('\n');
+                        cursor = current_gap_buffer->point_offset();
                     } break;
                     case SDLK_BACKSPACE: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor == 0)   break;
-                        gap_buffer.set_point(cursor - 1);
-                        gap_buffer.delete_chars(1);
-                        cursor = gap_buffer.point_offset();
+                        current_gap_buffer->set_point(cursor - 1);
+                        current_gap_buffer->delete_chars(1);
+                        cursor = current_gap_buffer->point_offset();
                         /*
                         if (cursor.line == 0 && cursor.offset == 0) break;
                         if (cursor.offset > 0) {
@@ -177,8 +361,8 @@ int main(int argc, char *argv[]) {
                         u64 offset = 0;
                         b32 found_offset = false;
                         for (u64 i = cursor; i-- > 0;) {
-                            gap_buffer.set_point(i);
-                            if (gap_buffer.get_char() == '\n') {
+                            current_gap_buffer->set_point(i);
+                            if (current_gap_buffer->get_char() == '\n') {
                                 if (!found_offset) {
                                     line_start = i;
                                     offset = cursor - i;
@@ -194,7 +378,7 @@ int main(int argc, char *argv[]) {
                                 cursor = offset - 1;
                                 if (cursor >= line_start) cursor = line_start - 1;
                             }
-                            gap_buffer.set_point(cursor);
+                            current_gap_buffer->set_point(cursor);
                         }
                     } break;
                     case SDLK_DOWN: {
@@ -202,8 +386,8 @@ int main(int argc, char *argv[]) {
                         u64 offset = 0;
                         b32 found_offset = false;
                         for (u64 i = cursor; i-- > 0;) {
-                            gap_buffer.set_point(i);
-                            if (gap_buffer.get_char() == '\n' || i == 0) {
+                            current_gap_buffer->set_point(i);
+                            if (current_gap_buffer->get_char() == '\n' || i == 0) {
                                 offset = cursor - i - 1;
                                 found_offset = true;
                                 break;
@@ -211,9 +395,9 @@ int main(int argc, char *argv[]) {
                         }
                         if (!found_offset && cursor != 0) break;
                         u64 next_line = 0;
-                        for (u64 i = cursor; i < gap_buffer.sizeof_buffer(); i++) {
-                            gap_buffer.set_point(i);
-                            if (gap_buffer.get_char() == '\n') {
+                        for (u64 i = cursor; i < current_gap_buffer->sizeof_buffer(); i++) {
+                            current_gap_buffer->set_point(i);
+                            if (current_gap_buffer->get_char() == '\n') {
                                 next_line = i + 1;
                                 break;
                             }
@@ -221,35 +405,35 @@ int main(int argc, char *argv[]) {
                         cursor = next_line;
                         for (u64 i = next_line; i < (next_line + offset); i++) {
                             cursor = i + 1;
-                            gap_buffer.set_point(i);
-                            if (gap_buffer.get_char() == '\n') {
+                            current_gap_buffer->set_point(i);
+                            if (current_gap_buffer->get_char() == '\n') {
                                 cursor--;
                                 break;
                             }
                         }
-                        if (cursor >= gap_buffer.sizeof_buffer())   cursor = gap_buffer.sizeof_buffer() - 1;
-                        gap_buffer.set_point(cursor);
+                        if (cursor >= current_gap_buffer->sizeof_buffer())   cursor = current_gap_buffer->sizeof_buffer() - 1;
+                        current_gap_buffer->set_point(cursor);
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor > 0) {
-                            // gap_buffer.set_point(cursor);
-                            gap_buffer.previous_char();
-                            cursor = gap_buffer.point_offset();
-                            if (gap_buffer.get_char() == '\n' && cursor > 0)   gap_buffer.previous_char();
-                            cursor = gap_buffer.point_offset();
+                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->previous_char();
+                            cursor = current_gap_buffer->point_offset();
+                            if (current_gap_buffer->get_char() == '\n' && cursor > 0)   current_gap_buffer->previous_char();
+                            cursor = current_gap_buffer->point_offset();
                         }
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor < gap_buffer.sizeof_buffer() - 1) {
-                            // gap_buffer.set_point(cursor);
-                            gap_buffer.next_char();
-                            if (gap_buffer.get_char() == '\n')   gap_buffer.next_char();
-                            cursor = gap_buffer.point_offset();
+                        if (cursor < current_gap_buffer->sizeof_buffer() - 1) {
+                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->next_char();
+                            if (current_gap_buffer->get_char() == '\n')   current_gap_buffer->next_char();
+                            cursor = current_gap_buffer->point_offset();
                             /*
-                            if (cursor >= gap_buffer.sizeof_buffer())   cursor -= 2;
-                            gap_buffer.set_point(cursor);
+                            if (cursor >= current_gap_buffer->sizeof_buffer())   cursor -= 2;
+                            current_gap_buffer->set_point(cursor);
                             */
                         }
                     } break;
@@ -257,26 +441,28 @@ int main(int argc, char *argv[]) {
                 break;
             }
             if (event.type == SDL_TEXTINPUT) {
-                gap_buffer.set_point(cursor);
-                gap_buffer.put_char(event.text.text[0]);
-                cursor = gap_buffer.point_offset();
+                current_gap_buffer->set_point(cursor);
+                current_gap_buffer->put_char(event.text.text[0]);
+                cursor = current_gap_buffer->point_offset();
                 break;
             }
         }
 
         // Update
+        current_window->cursor = cursor;
 
         // Render
-        b32 cursor_rendered = false;
+        render_layout(&layout, screen_surface, &theme);
+        SDL_UpdateWindowSurface(window);
 
-        SDL_FillRect(buffer1_surface, NULL, 0x000000);
-        SDL_FillRect(buffer2_surface, NULL, 0x072627);
 
+
+        /*
         u64 line = 0;
         u64 offset = 0;
-        char *temp = gap_buffer.buffer;
-        for (int i = 0; temp < gap_buffer.buffer_end; i++) {
-            if ((temp >= gap_buffer.gap_start) && (temp < gap_buffer.gap_end)) {
+        char *temp = current_gap_buffer->buffer;
+        for (int i = 0; temp < current_gap_buffer->buffer_end; i++) {
+            if ((temp >= current_gap_buffer->gap_start) && (temp < current_gap_buffer->gap_end)) {
                 temp++;
                 continue;
             }
@@ -286,31 +472,32 @@ int main(int argc, char *argv[]) {
                 offset = 0;
                 continue;
             }
-            if (temp - 1 == gap_buffer.point) {
-                render_glyph(buffer1_surface, font, c, cursor_fg, cursor_bg, offset, line, glyph_width, glyph_height);
+            if (temp - 1 == current_gap_buffer->point) {
+                render_glyph(current_window->surface, font, c, cursor_fg, cursor_bg, offset, line, glyph_width, glyph_height);
             } else {
-                render_glyph(buffer1_surface, font, c, fg, bg, offset, line, glyph_width, glyph_height);
+                render_glyph(current_window->surface, font, c, fg, bg, offset, line, glyph_width, glyph_height);
             }
             offset++;
         }
 
         SDL_Rect rect_full = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
-        SDL_BlitSurface(buffer1_surface, &rect_full , window_surface, &buffer1_rect);
-        SDL_BlitSurface(buffer2_surface, &rect_full , window_surface, &buffer2_rect);
-        SDL_UpdateWindowSurface(window);
+        SDL_BlitSurface(current_window->surface, &rect_full , screen_surface, current_window->parent_layout->rect);
+        // SDL_BlitSurface(buffer2_surface, &rect_full , screen_surface, &buffer2_rect);
+
+        */
         
         SDL_Delay(32);
     }
 
 #if 1
-    gap_buffer.print_buffer();
+    current_gap_buffer->print_buffer();
 #endif
 #if 1
     FILE *out;
     out = fopen("../tests/test_out.jai", "wb");
     defer { fclose(out); };
-    gap_buffer.set_point(0);
-    gap_buffer.save_buffer_to_file(out);
+    current_gap_buffer->set_point(0);
+    current_gap_buffer->save_buffer_to_file(out);
 #endif
 
     return 0;

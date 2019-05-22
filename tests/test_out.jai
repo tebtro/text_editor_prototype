@@ -1,7 +1,7 @@
-// For Assassins Creed Unity they made their own programming language that compiles to C.h
-hello sailor is 
+// For Assassins Creed Unity they made their own programming language that compiles to C.
+
 printf :: (fmt: ^char, args: ..) -> void #foreign "printf" {}
-scanf  :: (fmt: ^char, args: ..) -> void #foreign {}
+scanf  :: (fmt: ^char, args: ..) -> void #
 
 main :: () -> int {
     defer {
@@ -16,5 +16,3 @@ main :: () -> int {
     scanf("%d", &age);
     printf("age: %d\n", age);
 }
-hello sailor is this the end of the buffer
-this is the end of the bufferasdfasd
