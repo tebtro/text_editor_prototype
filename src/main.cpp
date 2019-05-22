@@ -82,6 +82,8 @@ namespace Layout_Orientation {
 struct Layout {
     enum32(Layout_Orientation) orientation;
     Array<Layout *> children;
+    // @todo change children this to something like just left and right Layout
+    // maybe one or the other has benefits. idk
 
     Layout *parent_layout = nullptr;
     Window *window = nullptr;
@@ -92,12 +94,10 @@ struct Layout {
 void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
                   char ch, SDL_Color fg, SDL_Color bg,
                   int x, int y, int glyph_width, int glyph_height) {
-    SDL_Texture *texture;
     int width, height;
     auto surface = TTF_RenderGlyph_Shaded(font, ch, fg, bg);
     defer {
         SDL_FreeSurface(surface);
-        SDL_DestroyTexture(texture);
     };
     if (!surface) {
         SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
@@ -148,9 +148,54 @@ Layout *make_layout(Array<Layout *> *layouts, int x, int y, int width, int heigh
     return layout;
 }
 
+void split_window_horizontally(Array<Layout *> *layouts, Array<Window *> *windows, Window *current_window) {
+    Layout *layout = current_window->parent_layout;
+
+    layout->orientation = Layout_Orientation::Horizontal;
+    Window *left_window = layout->window;
+    layout->window = nullptr;
+
+    Layout *left_layout = make_layout(layouts, layout->rect.x, layout->rect.y, layout->rect.w / 2, layout->rect.h, left_window);
+
+    Window *right_window = make_window(windows, layout->rect.w / 2, layout->rect.h);
+    right_window->buffer = left_window->buffer;
+    Layout *right_layout = make_layout(layouts, layout->rect.x + (layout->rect.w / 2), layout->rect.y,
+                                       layout->rect.w / 2, layout->rect.h, right_window);
+
+    layout->children.push(left_layout);
+    layout->children.push(right_layout);
+
+    // this below is not needed depending on if we use and array for children or just a left and right layout
+    // if !layout->window the layout is already split so split and resize all 3 childs
+    // @todo if sum of children widths != layout with then just add the difference to one of the childs
+}
+
+void split_window_vertically(Array<Layout *> *layouts, Array<Window *> *windows, Window *current_window) {
+    Layout *layout = current_window->parent_layout;
+
+    layout->orientation = Layout_Orientation::Vertical;
+    Window *top_window = layout->window;
+    layout->window = nullptr;
+
+    Layout *top_layout = make_layout(layouts, layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h / 2, top_window);
+
+    Window *bottom_window = make_window(windows, layout->rect.w, layout->rect.h / 2);
+    bottom_window->buffer = top_window->buffer;
+    Layout *bottom_layout = make_layout(layouts, layout->rect.x, layout->rect.y + (layout->rect.h / 2),
+                                       layout->rect.w, layout->rect.h / 2, bottom_window);
+
+    layout->children.push(top_layout);
+    layout->children.push(bottom_layout);
+
+    // this below is not needed depending on if we use and array for children or just a left and right layout
+    // if !layout->window the layout is already split so split and resize all 3 childs
+    // @todo if sum of children widths != layout with then just add the difference to one of the childs
+}
+
 void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
     if (layout->window) {
         Gap_Buffer *gap_buffer = &layout->window->buffer->gap_buffer;
+        gap_buffer->set_point(layout->window->cursor);
 
         SDL_FillRect(layout->window->surface, NULL, 0x000000);
         u64 line = 0;
@@ -250,34 +295,16 @@ int main(int argc, char *argv[]) {
     
     Buffer *buffer2 = open_file(&buffers, "../tests/test.jai");
 
-    { // Split windows horizontally
-        layout.orientation = Layout_Orientation::Horizontal;
-        Window *left_window = layout.window;
-        layout.window = nullptr;
+    Window *current_window = windows.array[0];
+    Gap_Buffer *current_gap_buffer = &current_window->buffer->gap_buffer;
 
-        Layout *left_layout = make_layout(&layouts, layout.rect.x, layout.rect.y, layout.rect.w / 2, layout.rect.h, left_window);
-        
-        Window *right_window = make_window(&windows, layout.rect.w / 2, layout.rect.h);
-        right_window->buffer = left_window->buffer;
-        Layout *right_layout = make_layout(&layouts, layout.rect.x + (layout.rect.w / 2), layout.rect.y,
-                                           layout.rect.w / 2, layout.rect.h, right_window);
+    split_window_horizontally(&layouts, &windows, current_window);
+    // change_buffer(window, buffer2);
+    windows.array[1]->buffer = buffer2; // left_window->buffer;
 
-        layout.children.push(left_layout);
-        layout.children.push(right_layout);
-
-        // change_buffer(window, buffer2);
-        right_window->buffer = buffer2; // left_window->buffer;
-    }
+    split_window_vertically(&layouts, &windows, current_window);
+    split_window_horizontally(&layouts, &windows, windows.array[1]);
     
-    Window *current_window = layout.children.array[0]->window;
-    Gap_Buffer *current_gap_buffer = &layout.children.array[0]->window->buffer->gap_buffer;
-
-    /*
-    SDL_Surface *buffer1_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
-    SDL_Rect buffer1_rect = {0,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
-    SDL_Surface *buffer2_surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH / 2, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
-    SDL_Rect buffer2_rect = {SCREEN_WIDTH / 2,0,SCREEN_WIDTH / 2,SCREEN_HEIGHT};
-    */
     defer {
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -455,37 +482,6 @@ int main(int argc, char *argv[]) {
         render_layout(&layout, screen_surface, &theme);
         SDL_UpdateWindowSurface(window);
 
-
-
-        /*
-        u64 line = 0;
-        u64 offset = 0;
-        char *temp = current_gap_buffer->buffer;
-        for (int i = 0; temp < current_gap_buffer->buffer_end; i++) {
-            if ((temp >= current_gap_buffer->gap_start) && (temp < current_gap_buffer->gap_end)) {
-                temp++;
-                continue;
-            }
-            char c = *(temp++);
-            if (c == '\n') { // @todo handle soft line breaks (\r), ...
-                line++;
-                offset = 0;
-                continue;
-            }
-            if (temp - 1 == current_gap_buffer->point) {
-                render_glyph(current_window->surface, font, c, cursor_fg, cursor_bg, offset, line, glyph_width, glyph_height);
-            } else {
-                render_glyph(current_window->surface, font, c, fg, bg, offset, line, glyph_width, glyph_height);
-            }
-            offset++;
-        }
-
-        SDL_Rect rect_full = {0,0,SCREEN_WIDTH,SCREEN_HEIGHT};
-        SDL_BlitSurface(current_window->surface, &rect_full , screen_surface, current_window->parent_layout->rect);
-        // SDL_BlitSurface(buffer2_surface, &rect_full , screen_surface, &buffer2_rect);
-
-        */
-        
         SDL_Delay(32);
     }
 
