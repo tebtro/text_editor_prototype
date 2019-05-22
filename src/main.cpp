@@ -170,6 +170,7 @@ void split_window_horizontally(Array<Layout *> *layouts, Array<Window *> *window
     // @todo if sum of children widths != layout with then just add the difference to one of the childs
 }
 
+// @copynpaste from split_window_horizontally
 void split_window_vertically(Array<Layout *> *layouts, Array<Window *> *windows, Window *current_window) {
     Layout *layout = current_window->parent_layout;
 
@@ -260,7 +261,32 @@ int main(int argc, char *argv[]) {
     assert(window);
     SDL_Surface *screen_surface = SDL_GetWindowSurface(window);
     assert(screen_surface);
+    defer {
+        SDL_FreeSurface(screen_surface);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        TTF_Quit();
+    };
 
+
+    
+    Theme theme = {};
+    theme.font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
+    assert(theme.font);
+    defer { TTF_CloseFont(theme.font); };
+    {
+        int minx, maxx, miny, maxy, advance;
+        TTF_GlyphMetrics(theme.font, L'W', &minx, &maxx, &miny, &maxy, &advance);
+        theme.glyph_width = advance;
+        theme.glyph_height = TTF_FontLineSkip(theme.font) + 1;
+    }
+    theme.fg = {255, 255, 255, 0};
+    theme.bg = {0, 0, 0, 0};
+    theme.cursor_fg = theme.bg;
+    theme.cursor_bg = theme.fg;
+
+    
+    
     Array<Window *> windows = {};
     defer {
         for (int i = 0; i < windows.count; ++i) {
@@ -304,43 +330,11 @@ int main(int argc, char *argv[]) {
 
     split_window_vertically(&layouts, &windows, current_window);
     split_window_horizontally(&layouts, &windows, windows.array[1]);
+
+
     
-    defer {
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        TTF_Quit();
-    };
-
-    TTF_Font *font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
-    assert(font);
-    int glyph_width;
-    {
-        int minx, maxx, miny, maxy, advance;
-        TTF_GlyphMetrics(font, L'W', &minx, &maxx, &miny, &maxy, &advance);
-        glyph_width = advance;
-    }
-    int glyph_height = TTF_FontLineSkip(font) + 1;
-    defer { TTF_CloseFont(font); };
-
-    Keyboard_Input input = {};
-
     u64 cursor = 0; // offset from start of buffer
-    
-    SDL_Color fg = {255, 255, 255, 0};
-    SDL_Color bg = {0, 0, 0, 0};
 
-    SDL_Color cursor_fg = bg;
-    SDL_Color cursor_bg = fg;
-
-    Theme theme = {};
-    theme.font = font;
-    theme.glyph_width  = glyph_width;
-    theme.glyph_height = glyph_height;
-    theme.fg = fg;
-    theme.bg = bg;
-    theme.cursor_fg = bg;
-    theme.cursor_bg = fg;
-    
     b32 running = true;
     SDL_StartTextInput();
     defer {SDL_StopTextInput();};
@@ -444,7 +438,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor > 0) {
-                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->set_point(cursor);
                             current_gap_buffer->previous_char();
                             cursor = current_gap_buffer->point_offset();
                             if (current_gap_buffer->get_char() == '\n' && cursor > 0)   current_gap_buffer->previous_char();
@@ -454,7 +448,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor < current_gap_buffer->sizeof_buffer() - 1) {
-                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->set_point(cursor);
                             current_gap_buffer->next_char();
                             if (current_gap_buffer->get_char() == '\n')   current_gap_buffer->next_char();
                             cursor = current_gap_buffer->point_offset();
