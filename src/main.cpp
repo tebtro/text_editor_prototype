@@ -28,6 +28,8 @@
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
+#define MS_PER_FRAME (u64)(1000 / 30)
+
 struct Button_State {
     b32 is_pressed;
 };
@@ -346,8 +348,9 @@ int main(int argc, char *argv[]) {
     SDL_StartTextInput();
     defer { SDL_StopTextInput(); };
     while (running) {
+        u64 start_tick = SDL_GetTicks();
         SDL_Event event;
-        while (SDL_PollEvent(&event) != 0) { // @todo poll or wait
+        while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_QUIT) {
                 running = false;
                 break;
@@ -466,22 +469,22 @@ int main(int argc, char *argv[]) {
                         }
                     } break;
                 }
-                break;
             }
             if (event.type == SDL_TEXTINPUT) {
                 current_gap_buffer->set_point(cursor);
                 current_gap_buffer->put_char(event.text.text[0]);
                 cursor = current_gap_buffer->point_offset();
-                break;
             }
         }
 
+        
         // Update
         current_window->cursor = cursor;
 
         // Render
         render_layout(&layout, screen_surface, &theme);
         SDL_UpdateWindowSurface(window);
+
 
         // sleep (or not)
         SDL_Event *events = {};
@@ -491,7 +494,11 @@ int main(int argc, char *argv[]) {
                                          SDL_FIRSTEVENT,
                                          SDL_LASTEVENT);
         // printf("event count: %d\n", event_count);
-        if (event_count == 0)   SDL_Delay(32);
+        u64 frame_duration_ticks = SDL_GetTicks() - start_tick;
+        if (frame_duration_ticks > MS_PER_FRAME)   frame_duration_ticks = MS_PER_FRAME;
+        u64 sleep_time = MS_PER_FRAME - frame_duration_ticks;
+        // printf("duration ticks: %llu, sleep_time: %llu\n", frame_duration_ticks, sleep_time);
+        if (event_count == 0)   SDL_Delay(sleep_time);
     }
 
 #if 1

@@ -1,7 +1,8 @@
 // For Assassins Creed Unity they made their own programming language that compiles to C.
-askdfljqapÃweoihnypÃxcoviha
-esfjypxcÃivhjaeÃiofvhadoifh
-
+aksdjfkqlhjyjxcv
+awef
+yxcvasdf
+qijhvpyixchfaiusdhfasdjkfaksldjf
 printf :: (fmt: ^char, args: ..) -> void #foreign "printf" {}
 scanf  :: (fmt: ^char, args: ..) -> void #foreign {}
 
