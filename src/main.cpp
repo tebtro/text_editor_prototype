@@ -70,6 +70,7 @@ struct Window {
     // cursor should maybe be on buffer
     u64 cursor = 0; // offset from start of buffer
 
+
     SDL_Rect rect;
     SDL_Surface *surface;
 };
@@ -83,7 +84,8 @@ namespace Layout_Orientation {
 
 struct Layout {
     enum32(Layout_Orientation) orientation;
-    Array<Layout *> children;
+    Layout *sub_layout1;
+    Layout *sub_layout2;
     // @todo change children this to something like just left and right Layout
     // maybe one or the other has benefits. idk
 
@@ -141,7 +143,6 @@ Window *make_window(Array<Window *> *windows, int width, int height) {
 Layout *make_layout(Array<Layout *> *layouts, int x, int y, int width, int height, Window *window) {
     Layout *layout = (Layout *) calloc(1, sizeof(Layout));
     layouts->push(layout);
-    layout->children = {};
     SDL_Rect rect = {x, y, width, height};
     layout->rect = rect;
     resize_window(window, width, height);
@@ -164,8 +165,8 @@ void split_window_horizontally(Array<Layout *> *layouts, Array<Window *> *window
     Layout *right_layout = make_layout(layouts, layout->rect.x + (layout->rect.w / 2), layout->rect.y,
                                        layout->rect.w / 2, layout->rect.h, right_window);
 
-    layout->children.push(left_layout);
-    layout->children.push(right_layout);
+    layout->sub_layout1  = left_layout;
+    layout->sub_layout2 = right_layout;
 
     // this below is not needed depending on if we use and array for children or just a left and right layout
     // if !layout->window the layout is already split so split and resize all 3 childs
@@ -187,8 +188,8 @@ void split_window_vertically(Array<Layout *> *layouts, Array<Window *> *windows,
     Layout *bottom_layout = make_layout(layouts, layout->rect.x, layout->rect.y + (layout->rect.h / 2),
                                        layout->rect.w, layout->rect.h / 2, bottom_window);
 
-    layout->children.push(top_layout);
-    layout->children.push(bottom_layout);
+    layout->sub_layout1 = top_layout;
+    layout->sub_layout2 = bottom_layout;
 
     // this below is not needed depending on if we use and array for children or just a left and right layout
     // if !layout->window the layout is already split so split and resize all 3 childs
@@ -230,10 +231,39 @@ void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
         return;
     }
 
-    
-    for (int i = 0; i < layout->children.count; ++i) {
-        render_layout(layout->children.array[i], screen_surface, theme);
+
+    render_layout(layout->sub_layout1, screen_surface, theme);
+    render_layout(layout->sub_layout2, screen_surface, theme);
+}
+
+void resize_layout(Layout *layout, SDL_Rect rect) {
+    printf("Resize layout, {x: %d, y: %d, w: %d, h: %d}\n", rect.x, rect.y, rect.w, rect.h);
+
+    if (layout->window) {
+        layout->rect = rect;
+        layout->window->rect = rect;
+        resize_window(layout->window, rect.w, rect.h);
+        return;
     }
+
+    layout->rect = rect;
+    if (layout->orientation == Layout_Orientation::Horizontal) {
+        rect.w = rect.w / 2;
+        resize_layout(layout->sub_layout1, rect);
+        rect.x = rect.w;
+        resize_layout(layout->sub_layout2, rect);
+    }
+    if (layout->orientation == Layout_Orientation::Vertical) {
+        rect.h = rect.h / 2;
+        resize_layout(layout->sub_layout1, rect);
+        rect.y = rect.h;
+        resize_layout(layout->sub_layout2, rect);
+    }
+}
+
+void resize_screen(Layout *layout, int new_width, int new_height) {
+    SDL_Rect rect = {0, 0, new_width, new_height};
+    resize_layout(layout, rect);
 }
 
 int main(int argc, char *argv[]) {
@@ -260,7 +290,7 @@ int main(int argc, char *argv[]) {
     
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
-    SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
     assert(window);
     SDL_Surface *screen_surface = SDL_GetWindowSurface(window);
     assert(screen_surface);
@@ -308,7 +338,6 @@ int main(int argc, char *argv[]) {
     };
 
     Layout layout = {};
-    layout.children = {};
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
     layout.rect = rect;
     Window *layout_window = make_window(&windows, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -353,6 +382,26 @@ int main(int argc, char *argv[]) {
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_QUIT) {
                 running = false;
+                break;
+            }
+            if (event.type == SDL_WINDOWEVENT) {
+                switch (event.window.event) {
+                    case SDL_WINDOWEVENT_RESIZED: {
+                        SDL_FreeSurface(screen_surface);
+                        screen_surface = SDL_GetWindowSurface(window);
+                        resize_screen(&layout, event.window.data1, event.window.data2);
+                        SDL_UpdateWindowSurface(window);
+                    } break;
+                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                        SDL_FreeSurface(screen_surface);
+                        screen_surface = SDL_GetWindowSurface(window);
+                        resize_screen(&layout, event.window.data1, event.window.data2);
+                        SDL_UpdateWindowSurface(window);
+                    } break;
+                    case SDL_WINDOWEVENT_MINIMIZED: {
+                        // @todo pause editor
+                    } break;
+                }
                 break;
             }
             if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
@@ -469,11 +518,13 @@ int main(int argc, char *argv[]) {
                         }
                     } break;
                 }
+                continue;
             }
             if (event.type == SDL_TEXTINPUT) {
                 current_gap_buffer->set_point(cursor);
                 current_gap_buffer->put_char(event.text.text[0]);
                 cursor = current_gap_buffer->point_offset();
+                continue;
             }
         }
 
@@ -489,7 +540,7 @@ int main(int argc, char *argv[]) {
         // sleep (or not)
         SDL_Event *events = {};
         int event_count = SDL_PeepEvents(events,
-                                         10,
+                                         1, // idk
                                          SDL_PEEKEVENT,
                                          SDL_FIRSTEVENT,
                                          SDL_LASTEVENT);
