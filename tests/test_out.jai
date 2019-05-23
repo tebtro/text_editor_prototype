@@ -1,5 +1,4 @@
-asdfasdf
-asdf// For Assassins Creed Unity they made their own programming language that compiles to C.
+// For Assassins Creed Unity they made their own programming language that compiles to C.
 
 printf :: (fmt: ^char, args: ..) -> void #foreign "printf" {}
 scanf  :: (fmt: ^char, args: ..) -> void #foreign {}

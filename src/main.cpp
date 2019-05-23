@@ -130,6 +130,7 @@ Buffer *open_file(Array<Buffer *> *buffers, char *input_file_path) {
 void resize_window(Window *window, int width, int height) {
     SDL_Rect rect = {0, 0, width, height};
     window->rect = rect;
+    SDL_FreeSurface(window->surface);
     window->surface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
 }
 
@@ -250,13 +251,13 @@ void resize_layout(Layout *layout, SDL_Rect rect) {
     if (layout->orientation == Layout_Orientation::Horizontal) {
         rect.w = rect.w / 2;
         resize_layout(layout->sub_layout1, rect);
-        rect.x = rect.w;
+        rect.x += rect.w;
         resize_layout(layout->sub_layout2, rect);
     }
     if (layout->orientation == Layout_Orientation::Vertical) {
         rect.h = rect.h / 2;
         resize_layout(layout->sub_layout1, rect);
-        rect.y = rect.h;
+        rect.y += rect.h;
         resize_layout(layout->sub_layout2, rect);
     }
 }
@@ -358,10 +359,10 @@ int main(int argc, char *argv[]) {
     // @todo refactor to change buffer in current window change_buffer(window, buffer2);
     windows.array[1]->buffer = buffer2; // left_window->buffer;
 #endif
-#if 0
+#if 1
     split_window_vertically(&layouts, &windows, current_window);
 #endif
-#if 0
+#if 1
     // @todo functions to change window
     split_window_horizontally(&layouts, &windows, windows.array[1]);
 #endif
