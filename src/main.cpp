@@ -117,7 +117,7 @@ Buffer *open_file(Array<Buffer *> *buffers, char *input_file_path) {
     defer { fclose(file); };
 
     Buffer *buffer = (Buffer *) calloc(1, sizeof(Buffer));
-    buffer->gap_buffer = Gap_Buffer::make_gap_buffer(file);
+    buffer->gap_buffer = make_gap_buffer(file);
     buffers->push(buffer);
 
     return buffer;
@@ -236,7 +236,6 @@ void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
 
 int main(int argc, char *argv[]) {
     char *input_file_path = nullptr;
-
     for (int i = 1; i < argc; ++i) {
         printf("argument[%d]: %s\n", i, argv[i]);
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -255,6 +254,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+
+    
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -287,21 +288,18 @@ int main(int argc, char *argv[]) {
 
     
     
+    Array<Buffer *> buffers = {};
     Array<Window *> windows = {};
+    Array<Layout *> layouts = {};
     defer {
+        for (int i = 0; i < buffers.count; ++i) {
+            free(buffers.array[i]->gap_buffer.buffer);
+            free(buffers.array[i]);
+        }
         for (int i = 0; i < windows.count; ++i) {
             SDL_FreeSurface(windows.array[i]->surface);
             free(windows.array[i]);
         }
-    };
-    Array<Buffer *> buffers = {};
-    defer {
-        for (int i = 0; i < buffers.count; ++i) {
-            free(buffers.array[i]);
-        }
-    };
-    Array<Layout *> layouts = {};
-    defer {
         for (int i = 0; i < layouts.count; ++i) {
             free(layouts.array[i]);
         }
@@ -324,20 +322,29 @@ int main(int argc, char *argv[]) {
     Window *current_window = windows.array[0];
     Gap_Buffer *current_gap_buffer = &current_window->buffer->gap_buffer;
 
+#if 1
     split_window_horizontally(&layouts, &windows, current_window);
-    // change_buffer(window, buffer2);
+    // @todo refactor to change buffer in current window change_buffer(window, buffer2);
     windows.array[1]->buffer = buffer2; // left_window->buffer;
-
+#endif
+#if 0
     split_window_vertically(&layouts, &windows, current_window);
+#endif
+#if 0
+    // @todo functions to change window
     split_window_horizontally(&layouts, &windows, windows.array[1]);
-
+#endif
+#if 0
+    // @todo delete current window
+    // then change current window
+#endif
 
     
     u64 cursor = 0; // offset from start of buffer
 
     b32 running = true;
     SDL_StartTextInput();
-    defer {SDL_StopTextInput();};
+    defer { SDL_StopTextInput(); };
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) { // @todo poll or wait
@@ -438,7 +445,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor > 0) {
-                            current_gap_buffer->set_point(cursor);
+                            // current_gap_buffer->set_point(cursor);
                             current_gap_buffer->previous_char();
                             cursor = current_gap_buffer->point_offset();
                             if (current_gap_buffer->get_char() == '\n' && cursor > 0)   current_gap_buffer->previous_char();
@@ -448,7 +455,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor < current_gap_buffer->sizeof_buffer() - 1) {
-                            current_gap_buffer->set_point(cursor);
+                            // current_gap_buffer->set_point(cursor);
                             current_gap_buffer->next_char();
                             if (current_gap_buffer->get_char() == '\n')   current_gap_buffer->next_char();
                             cursor = current_gap_buffer->point_offset();
