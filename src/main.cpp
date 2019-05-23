@@ -483,7 +483,15 @@ int main(int argc, char *argv[]) {
         render_layout(&layout, screen_surface, &theme);
         SDL_UpdateWindowSurface(window);
 
-        SDL_Delay(32);
+        // sleep (or not)
+        SDL_Event *events = {};
+        int event_count = SDL_PeepEvents(events,
+                                         10,
+                                         SDL_PEEKEVENT,
+                                         SDL_FIRSTEVENT,
+                                         SDL_LASTEVENT);
+        // printf("event count: %d\n", event_count);
+        if (event_count == 0)   SDL_Delay(32);
     }
 
 #if 1
