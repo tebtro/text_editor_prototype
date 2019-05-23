@@ -213,6 +213,10 @@ void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
             }
             char c = *(temp++);
             if (c == '\n') { // @todo handle soft line breaks (\r), ...
+                if (temp - 1 == gap_buffer->point) {
+                    render_glyph(layout->window->surface, theme->font, ' ', theme->cursor_fg, theme->cursor_bg,
+                                 offset, line, theme->glyph_width, theme->glyph_height);
+                }
                 line++;
                 offset = 0;
                 continue;
@@ -238,8 +242,6 @@ void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
 }
 
 void resize_layout(Layout *layout, SDL_Rect rect) {
-    printf("Resize layout, {x: %d, y: %d, w: %d, h: %d}\n", rect.x, rect.y, rect.w, rect.h);
-
     if (layout->window) {
         layout->rect = rect;
         layout->window->rect = rect;
@@ -451,13 +453,13 @@ int main(int argc, char *argv[]) {
                                     continue;
                                 } else {
                                     cursor = i + offset;
-                                    if (cursor >= line_start) cursor = line_start - 1;
+                                    if (cursor >= line_start) cursor = line_start;
                                     break;
                                 }
                             }
                             if (found_offset && i == 0) {
                                 cursor = offset - 1;
-                                if (cursor >= line_start) cursor = line_start - 1;
+                                if (cursor >= line_start) cursor = line_start;
                             }
                             current_gap_buffer->set_point(cursor);
                         }
@@ -498,7 +500,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor > 0) {
-                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->set_point(cursor);
                             current_gap_buffer->previous_char();
                             cursor = current_gap_buffer->point_offset();
                             if (current_gap_buffer->get_char() == '\n' && cursor > 0)   current_gap_buffer->previous_char();
@@ -508,14 +510,12 @@ int main(int argc, char *argv[]) {
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
                         if (cursor < current_gap_buffer->sizeof_buffer() - 1) {
-                            // current_gap_buffer->set_point(cursor);
+                            current_gap_buffer->set_point(cursor);
                             current_gap_buffer->next_char();
                             if (current_gap_buffer->get_char() == '\n')   current_gap_buffer->next_char();
                             cursor = current_gap_buffer->point_offset();
-                            /*
                             if (cursor >= current_gap_buffer->sizeof_buffer())   cursor -= 2;
                             current_gap_buffer->set_point(cursor);
-                            */
                         }
                     } break;
                 }
