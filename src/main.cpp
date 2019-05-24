@@ -112,34 +112,15 @@ struct Editor {
     u64         current_cursor;
 };
 
-void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
-                  char ch, SDL_Color fg, SDL_Color bg,
-                  int x, int y, int glyph_width, int glyph_height) {
-    int width, height;
-    auto surface = TTF_RenderGlyph_Shaded(font, ch, fg, bg);
-    defer {
-        SDL_FreeSurface(surface);
-    };
-    if (!surface) {
-        SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
-        SDL_BlitSurface(NULL, NULL, window_surface, &rect);
-    }
-    width = surface->w;
-    height = surface->h;
-    SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
-    SDL_Rect rect_font_surface = {0,0,width,height};
-    SDL_BlitSurface(surface, &rect_font_surface , window_surface, &rect);
-}
-
 // @todo absolute path
-Buffer *open_file(Array<Buffer *> *buffers, char *input_file_path) {
+Buffer *open_file(Editor *editor, char *input_file_path) {
     FILE *file;
     file = fopen(input_file_path, "r"); // test.jai demo.jai
     defer { fclose(file); };
 
     Buffer *buffer = (Buffer *) calloc(1, sizeof(Buffer));
     buffer->gap_buffer = make_gap_buffer(file);
-    buffers->push(buffer);
+    editor->buffers.push(buffer);
 
     return buffer;
 }
@@ -186,6 +167,8 @@ void split_window_horizontally(Editor *editor, Window *window) {
     layout->sub_layout1  = left_layout;
     layout->sub_layout2 = right_layout;
 
+
+    assert(layout->rect.w == (left_layout->rect.w + right_layout->rect.w));
     // this below is not needed depending on if we use and array for children or just a left and right layout
     // if !layout->window the layout is already split so split and resize all 3 childs
     // @todo if sum of children widths != layout with then just add the difference to one of the childs
@@ -213,6 +196,8 @@ void split_window_vertically(Editor *editor, Window *window) {
     layout->sub_layout1 = top_layout;
     layout->sub_layout2 = bottom_layout;
 
+    
+    assert(layout->rect.h == (top_layout->rect.h + bottom_layout->rect.h));
     // this below is not needed depending on if we use and array for children or just a left and right layout
     // if !layout->window the layout is already split so split and resize all 3 childs
     // @todo if sum of children widths != layout with then just add the difference to one of the childs
@@ -220,6 +205,32 @@ void split_window_vertically(Editor *editor, Window *window) {
 
 void split_current_window_vertically(Editor *editor) {
     split_window_vertically(editor, editor->current_window);
+}
+
+void render_glyph(SDL_Surface *window_surface, Theme *theme,
+                  char ch, int x, int y, b32 render_cursor = false) {
+    int glyph_width  = theme->glyph_width;
+    int glyph_height = theme->glyph_height;
+    int width, height;
+    SDL_Color fg = theme->fg;
+    SDL_Color bg = theme->bg;
+    if (render_cursor) {
+        fg = theme->bg;
+        bg = theme->fg;
+    }
+    auto surface = TTF_RenderGlyph_Shaded(theme->font, ch, fg, bg);
+    defer {
+        SDL_FreeSurface(surface);
+    };
+    if (!surface) {
+        SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
+        SDL_BlitSurface(NULL, NULL, window_surface, &rect);
+    }
+    width = surface->w;
+    height = surface->h;
+    SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
+    SDL_Rect rect_font_surface = {0,0,width,height};
+    SDL_BlitSurface(surface, &rect_font_surface , window_surface, &rect);
 }
 
 void render_layout(Editor *editor, Layout *layout) {
@@ -241,19 +252,16 @@ void render_layout(Editor *editor, Layout *layout) {
             char c = *(temp++);
             if (c == '\n') { // @todo handle soft line breaks (\r), ...
                 if (temp - 1 == gap_buffer->point) {
-                    render_glyph(layout->window->surface, theme->font, ' ', theme->cursor_fg, theme->cursor_bg,
-                                 offset, line, theme->glyph_width, theme->glyph_height);
+                    render_glyph(layout->window->surface, theme, ' ', offset, line, true);
                 }
                 line++;
                 offset = 0;
                 continue;
             }
             if (temp - 1 == gap_buffer->point) {
-                render_glyph(layout->window->surface, theme->font, c, theme->cursor_fg, theme->cursor_bg,
-                             offset, line, theme->glyph_width, theme->glyph_height);
+                render_glyph(layout->window->surface, theme, c, offset, line, true);
             } else {
-                render_glyph(layout->window->surface, theme->font, c, theme->fg, theme->bg,
-                             offset, line, theme->glyph_width, theme->glyph_height);
+                render_glyph(layout->window->surface, theme, c, offset, line);
             }
             offset++;
         }
@@ -379,10 +387,10 @@ int main(int argc, char *argv[]) {
     editor->root_layout.window->parent_layout = &editor->root_layout;
 
 
-    Buffer *buffer = open_file(&editor->buffers, input_file_path);
+    Buffer *buffer = open_file(editor, input_file_path);
     editor->root_layout.window->buffer = buffer;
     
-    Buffer *buffer2 = open_file(&editor->buffers, "../tests/test.jai");
+    Buffer *buffer2 = open_file(editor, "../tests/test.jai");
 
     editor->current_window = editor->windows.array[0];
     editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;

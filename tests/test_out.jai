@@ -1,5 +1,5 @@
 // For Assassins Creed Unity they made their own programming language that compiles to C.
-hello sailor is this the end of the buffer or not
+hello sailor
 printf :: (fmt: ^char, args: ..) -> void #foreign "printf" {}
 scanf  :: (fmt: ^char, args: ..) -> void #foreign {}
 
