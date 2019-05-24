@@ -1,3 +1,9 @@
 * todos [0/1] [0%]
 - [ ] render only visible area
 - [ ] cursor save offset, if you only move up or down, and not left right, you should keep the offset also between lines with different length
+
+- [ ] input system, like in 4coder a method to bind with the key and its modifiers to a function (in 4coder custom command sig).
+  The function to call gets then added to a hashtable with a string as key like "C-A" or something, where C stands for CTRL. And the value is the function name to call.
+  In the event loop we then generate the key and look it up in the hashtable.
+  
+  Something like that, im not that sure about it yet.

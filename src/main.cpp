@@ -95,6 +95,23 @@ struct Layout {
     SDL_Rect rect;
 };
 
+struct Editor {
+    SDL_Window  *window;
+    SDL_Surface *screen_surface;
+
+    Theme *theme;
+
+    Array<Buffer *> buffers;
+    Array<Window *> windows;
+    Array<Layout *> layouts;
+
+    Layout root_layout;
+
+    Window     *current_window;
+    Gap_Buffer *current_gap_buffer;
+    u64         current_cursor;
+};
+
 void render_glyph(SDL_Surface *window_surface, TTF_Font *font,
                   char ch, SDL_Color fg, SDL_Color bg,
                   int x, int y, int glyph_width, int glyph_height) {
@@ -134,16 +151,16 @@ void resize_window(Window *window, int width, int height) {
     window->surface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
 }
 
-Window *make_window(Array<Window *> *windows, int width, int height) {
+Window *make_window(Editor *editor, int width, int height) {
     Window *window = (Window *) calloc(1, sizeof(Window));
-    windows->push(window);
+    editor->windows.push(window);
     resize_window(window, width, height);
     return window;
 }
 
-Layout *make_layout(Array<Layout *> *layouts, int x, int y, int width, int height, Window *window) {
+Layout *make_layout(Editor *editor, int x, int y, int width, int height, Window *window) {
     Layout *layout = (Layout *) calloc(1, sizeof(Layout));
-    layouts->push(layout);
+    editor->layouts.push(layout);
     SDL_Rect rect = {x, y, width, height};
     layout->rect = rect;
     resize_window(window, width, height);
@@ -152,18 +169,18 @@ Layout *make_layout(Array<Layout *> *layouts, int x, int y, int width, int heigh
     return layout;
 }
 
-void split_window_horizontally(Array<Layout *> *layouts, Array<Window *> *windows, Window *current_window) {
-    Layout *layout = current_window->parent_layout;
+void split_window_horizontally(Editor *editor, Window *window) {
+    Layout *layout = window->parent_layout;
 
     layout->orientation = Layout_Orientation::Horizontal;
     Window *left_window = layout->window;
     layout->window = nullptr;
 
-    Layout *left_layout = make_layout(layouts, layout->rect.x, layout->rect.y, layout->rect.w / 2, layout->rect.h, left_window);
+    Layout *left_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w / 2, layout->rect.h, left_window);
 
-    Window *right_window = make_window(windows, layout->rect.w / 2, layout->rect.h);
+    Window *right_window = make_window(editor, layout->rect.w / 2, layout->rect.h);
     right_window->buffer = left_window->buffer;
-    Layout *right_layout = make_layout(layouts, layout->rect.x + (layout->rect.w / 2), layout->rect.y,
+    Layout *right_layout = make_layout(editor, layout->rect.x + (layout->rect.w / 2), layout->rect.y,
                                        layout->rect.w / 2, layout->rect.h, right_window);
 
     layout->sub_layout1  = left_layout;
@@ -174,20 +191,24 @@ void split_window_horizontally(Array<Layout *> *layouts, Array<Window *> *window
     // @todo if sum of children widths != layout with then just add the difference to one of the childs
 }
 
+void split_current_window_horizontally(Editor *editor) {
+    split_window_horizontally(editor, editor->current_window);
+}
+
 // @copynpaste from split_window_horizontally
-void split_window_vertically(Array<Layout *> *layouts, Array<Window *> *windows, Window *current_window) {
-    Layout *layout = current_window->parent_layout;
+void split_window_vertically(Editor *editor, Window *window) {
+    Layout *layout = window->parent_layout;
 
     layout->orientation = Layout_Orientation::Vertical;
     Window *top_window = layout->window;
     layout->window = nullptr;
 
-    Layout *top_layout = make_layout(layouts, layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h / 2, top_window);
+    Layout *top_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h / 2, top_window);
 
-    Window *bottom_window = make_window(windows, layout->rect.w, layout->rect.h / 2);
+    Window *bottom_window = make_window(editor, layout->rect.w, layout->rect.h / 2);
     bottom_window->buffer = top_window->buffer;
-    Layout *bottom_layout = make_layout(layouts, layout->rect.x, layout->rect.y + (layout->rect.h / 2),
-                                       layout->rect.w, layout->rect.h / 2, bottom_window);
+    Layout *bottom_layout = make_layout(editor, layout->rect.x, layout->rect.y + (layout->rect.h / 2),
+                                        layout->rect.w, layout->rect.h / 2, bottom_window);
 
     layout->sub_layout1 = top_layout;
     layout->sub_layout2 = bottom_layout;
@@ -197,7 +218,13 @@ void split_window_vertically(Array<Layout *> *layouts, Array<Window *> *windows,
     // @todo if sum of children widths != layout with then just add the difference to one of the childs
 }
 
-void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
+void split_current_window_vertically(Editor *editor) {
+    split_window_vertically(editor, editor->current_window);
+}
+
+void render_layout(Editor *editor, Layout *layout) {
+    SDL_Surface *screen_surface = editor->screen_surface;
+    Theme *theme = editor->theme;
     if (layout->window) {
         Gap_Buffer *gap_buffer = &layout->window->buffer->gap_buffer;
         gap_buffer->set_point(layout->window->cursor);
@@ -237,8 +264,8 @@ void render_layout(Layout *layout, SDL_Surface *screen_surface, Theme *theme) {
     }
 
 
-    render_layout(layout->sub_layout1, screen_surface, theme);
-    render_layout(layout->sub_layout2, screen_surface, theme);
+    render_layout(editor, layout->sub_layout1);
+    render_layout(editor, layout->sub_layout2);
 }
 
 void resize_layout(Layout *layout, SDL_Rect rect) {
@@ -289,84 +316,88 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-
+    Editor *editor = (Editor *) calloc(1, sizeof(Editor));
+    defer { free(editor); };
+    // @todo create a method to free everything
     
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
-    SDL_Window *window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
-    assert(window);
-    SDL_Surface *screen_surface = SDL_GetWindowSurface(window);
-    assert(screen_surface);
+    editor->window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
+    assert(editor->window);
+    editor->screen_surface = SDL_GetWindowSurface(editor->window);
+    assert(editor->screen_surface);
     defer {
-        SDL_FreeSurface(screen_surface);
-        SDL_DestroyWindow(window);
+        SDL_FreeSurface(editor->screen_surface);
+        SDL_DestroyWindow(editor->window);
         SDL_Quit();
         TTF_Quit();
     };
 
 
-    
-    Theme theme = {};
-    theme.font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
-    assert(theme.font);
-    defer { TTF_CloseFont(theme.font); };
-    {
-        int minx, maxx, miny, maxy, advance;
-        TTF_GlyphMetrics(theme.font, L'W', &minx, &maxx, &miny, &maxy, &advance);
-        theme.glyph_width = advance;
-        theme.glyph_height = TTF_FontLineSkip(theme.font) + 1;
+    { 
+        Theme *theme = (Theme *) calloc(1, sizeof(Theme));
+        editor->theme = theme;
+        theme->font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
+        assert(theme->font);
+        {
+            int minx, maxx, miny, maxy, advance;
+            TTF_GlyphMetrics(theme->font, L'W', &minx, &maxx, &miny, &maxy, &advance);
+            theme->glyph_width = advance;
+            theme->glyph_height = TTF_FontLineSkip(theme->font) + 1;
+        }
+        theme->fg = {255, 255, 255, 0};
+        theme->bg = {0, 0, 0, 0};
+        theme->cursor_fg = theme->bg;
+        theme->cursor_bg = theme->fg;
     }
-    theme.fg = {255, 255, 255, 0};
-    theme.bg = {0, 0, 0, 0};
-    theme.cursor_fg = theme.bg;
-    theme.cursor_bg = theme.fg;
+    defer { TTF_CloseFont(editor->theme->font); };
 
     
     
-    Array<Buffer *> buffers = {};
-    Array<Window *> windows = {};
-    Array<Layout *> layouts = {};
+    editor->buffers = {};
+    editor->windows = {};
+    editor->layouts = {};
     defer {
-        for (int i = 0; i < buffers.count; ++i) {
-            free(buffers.array[i]->gap_buffer.buffer);
-            free(buffers.array[i]);
+        for (int i = 0; i < editor->buffers.count; ++i) {
+            free(editor->buffers.array[i]->gap_buffer.buffer);
+            free(editor->buffers.array[i]);
         }
-        for (int i = 0; i < windows.count; ++i) {
-            SDL_FreeSurface(windows.array[i]->surface);
-            free(windows.array[i]);
+        for (int i = 0; i < editor->windows.count; ++i) {
+            SDL_FreeSurface(editor->windows.array[i]->surface);
+            free(editor->windows.array[i]);
         }
-        for (int i = 0; i < layouts.count; ++i) {
-            free(layouts.array[i]);
+        for (int i = 0; i < editor->layouts.count; ++i) {
+            free(editor->layouts.array[i]);
         }
     };
 
-    Layout layout = {};
+    editor->root_layout = {};
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    layout.rect = rect;
-    Window *layout_window = make_window(&windows, SCREEN_WIDTH, SCREEN_HEIGHT);
-    layout.window = layout_window;
-    layout.window->parent_layout = &layout;
+    editor->root_layout.rect = rect;
+    Window *layout_window = make_window(editor, SCREEN_WIDTH, SCREEN_HEIGHT);
+    editor->root_layout.window = layout_window;
+    editor->root_layout.window->parent_layout = &editor->root_layout;
 
 
-    Buffer *buffer = open_file(&buffers, input_file_path);
-    layout.window->buffer = buffer;
+    Buffer *buffer = open_file(&editor->buffers, input_file_path);
+    editor->root_layout.window->buffer = buffer;
     
-    Buffer *buffer2 = open_file(&buffers, "../tests/test.jai");
+    Buffer *buffer2 = open_file(&editor->buffers, "../tests/test.jai");
 
-    Window *current_window = windows.array[0];
-    Gap_Buffer *current_gap_buffer = &current_window->buffer->gap_buffer;
+    editor->current_window = editor->windows.array[0];
+    editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;
 
 #if 1
-    split_window_horizontally(&layouts, &windows, current_window);
+    split_current_window_horizontally(editor);
     // @todo refactor to change buffer in current window change_buffer(window, buffer2);
-    windows.array[1]->buffer = buffer2; // left_window->buffer;
+    editor->windows.array[1]->buffer = buffer2; // left_window->buffer;
 #endif
 #if 1
-    split_window_vertically(&layouts, &windows, current_window);
+    split_current_window_vertically(editor);
 #endif
 #if 1
     // @todo functions to change window
-    split_window_horizontally(&layouts, &windows, windows.array[1]);
+    split_window_horizontally(editor, editor->windows.array[1]);
 #endif
 #if 0
     // @todo delete current window
@@ -374,7 +405,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     
-    u64 cursor = 0; // offset from start of buffer
+    editor->current_cursor = 0; // offset from start of buffer
 
     b32 running = true;
     SDL_StartTextInput();
@@ -390,16 +421,16 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_WINDOWEVENT) {
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_RESIZED: {
-                        SDL_FreeSurface(screen_surface);
-                        screen_surface = SDL_GetWindowSurface(window);
-                        resize_screen(&layout, event.window.data1, event.window.data2);
-                        SDL_UpdateWindowSurface(window);
+                        SDL_FreeSurface(editor->screen_surface);
+                        editor->screen_surface = SDL_GetWindowSurface(editor->window);
+                        resize_screen(&editor->root_layout, event.window.data1, event.window.data2);
+                        SDL_UpdateWindowSurface(editor->window);
                     } break;
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                        SDL_FreeSurface(screen_surface);
-                        screen_surface = SDL_GetWindowSurface(window);
-                        resize_screen(&layout, event.window.data1, event.window.data2);
-                        SDL_UpdateWindowSurface(window);
+                        SDL_FreeSurface(editor->screen_surface);
+                        editor->screen_surface = SDL_GetWindowSurface(editor->window);
+                        resize_screen(&editor->root_layout, event.window.data1, event.window.data2);
+                        SDL_UpdateWindowSurface(editor->window);
                     } break;
                     case SDL_WINDOWEVENT_MINIMIZED: {
                         // @todo pause editor
@@ -414,27 +445,27 @@ int main(int argc, char *argv[]) {
                     } break;
                     case SDLK_RETURN: {
                         if (event.type != SDL_KEYDOWN) break;
-                        current_gap_buffer->set_point(cursor);
-                        current_gap_buffer->put_char('\n');
-                        cursor = current_gap_buffer->point_offset();
+                        editor->current_gap_buffer->set_point(editor->current_cursor);
+                        editor->current_gap_buffer->put_char('\n');
+                        editor->current_cursor = editor->current_gap_buffer->point_offset();
                     } break;
                     case SDLK_BACKSPACE: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor == 0)   break;
-                        current_gap_buffer->set_point(cursor - 1);
-                        current_gap_buffer->delete_chars(1);
-                        cursor = current_gap_buffer->point_offset();
+                        if (editor->current_cursor == 0)   break;
+                        editor->current_gap_buffer->set_point(editor->current_cursor - 1);
+                        editor->current_gap_buffer->delete_chars(1);
+                        editor->current_cursor = editor->current_gap_buffer->point_offset();
                         /*
-                        if (cursor.line == 0 && cursor.offset == 0) break;
-                        if (cursor.offset > 0) {
-                            ch_[cursor.line].erase(ch_[cursor.line].begin() + --cursor.offset);
+                        if (editor->current_cursor.line == 0 && editor->current_cursor.offset == 0) break;
+                        if (editor->current_cursor.offset > 0) {
+                            ch_[editor->current_cursor.line].erase(ch_[editor->current_cursor.line].begin() + --editor->current_cursor.offset);
                             break;
                         }
-                        if (cursor.offset == 0 && cursor.line > 0) {
-                            if (ch_[cursor.line].size() == 0) ch_.erase(ch_.begin() + cursor.line);
-                            cursor.line--;
-                            cursor.offset = ch_[cursor.line].size();
-                            // ch_[cursor.line].erase(ch_[cursor.line].begin() + --cursor.offset);
+                        if (editor->current_cursor.offset == 0 && editor->current_cursor.line > 0) {
+                            if (ch_[editor->current_cursor.line].size() == 0) ch_.erase(ch_.begin() + editor->current_cursor.line);
+                            editor->current_cursor.line--;
+                            editor->current_cursor.offset = ch_[editor->current_cursor.line].size();
+                            // ch_[editor->current_cursor.line].erase(ch_[editor->current_cursor.line].begin() + --editor->current_cursor.offset);
                         }
                         */
                     } break;
@@ -443,99 +474,99 @@ int main(int argc, char *argv[]) {
                         u64 line_start = 0;
                         u64 offset = 0;
                         b32 found_offset = false;
-                        for (u64 i = cursor; i-- > 0;) {
-                            current_gap_buffer->set_point(i);
-                            if (current_gap_buffer->get_char() == '\n') {
+                        for (u64 i = editor->current_cursor; i-- > 0;) {
+                            editor->current_gap_buffer->set_point(i);
+                            if (editor->current_gap_buffer->get_char() == '\n') {
                                 if (!found_offset) {
                                     line_start = i;
-                                    offset = cursor - i;
+                                    offset = editor->current_cursor - i;
                                     found_offset = true;
                                     continue;
                                 } else {
-                                    cursor = i + offset;
-                                    if (cursor >= line_start) cursor = line_start;
+                                    editor->current_cursor = i + offset;
+                                    if (editor->current_cursor >= line_start) editor->current_cursor = line_start;
                                     break;
                                 }
                             }
                             if (found_offset && i == 0) {
-                                cursor = offset - 1;
-                                if (cursor >= line_start) cursor = line_start;
+                                editor->current_cursor = offset - 1;
+                                if (editor->current_cursor >= line_start) editor->current_cursor = line_start;
                             }
-                            current_gap_buffer->set_point(cursor);
+                            editor->current_gap_buffer->set_point(editor->current_cursor);
                         }
                     } break;
                     case SDLK_DOWN: {
                         if (event.type != SDL_KEYDOWN) break;
                         u64 offset = 0;
                         b32 found_offset = false;
-                        for (u64 i = cursor; i-- > 0;) {
-                            current_gap_buffer->set_point(i);
-                            if (current_gap_buffer->get_char() == '\n' || i == 0) {
-                                offset = cursor - i - 1;
+                        for (u64 i = editor->current_cursor; i-- > 0;) {
+                            editor->current_gap_buffer->set_point(i);
+                            if (editor->current_gap_buffer->get_char() == '\n' || i == 0) {
+                                offset = editor->current_cursor - i - 1;
                                 found_offset = true;
                                 break;
                             }
                         }
-                        if (!found_offset && cursor != 0) break;
+                        if (!found_offset && editor->current_cursor != 0) break;
                         u64 next_line = 0;
-                        for (u64 i = cursor; i < current_gap_buffer->sizeof_buffer(); i++) {
-                            current_gap_buffer->set_point(i);
-                            if (current_gap_buffer->get_char() == '\n') {
+                        for (u64 i = editor->current_cursor; i < editor->current_gap_buffer->sizeof_buffer(); i++) {
+                            editor->current_gap_buffer->set_point(i);
+                            if (editor->current_gap_buffer->get_char() == '\n') {
                                 next_line = i + 1;
                                 break;
                             }
                         }
-                        cursor = next_line;
+                        editor->current_cursor = next_line;
                         for (u64 i = next_line; i < (next_line + offset); i++) {
-                            cursor = i + 1;
-                            current_gap_buffer->set_point(i);
-                            if (current_gap_buffer->get_char() == '\n') {
-                                cursor--;
+                            editor->current_cursor = i + 1;
+                            editor->current_gap_buffer->set_point(i);
+                            if (editor->current_gap_buffer->get_char() == '\n') {
+                                editor->current_cursor--;
                                 break;
                             }
                         }
-                        if (cursor >= current_gap_buffer->sizeof_buffer())   cursor = current_gap_buffer->sizeof_buffer() - 1;
-                        current_gap_buffer->set_point(cursor);
+                        if (editor->current_cursor >= editor->current_gap_buffer->sizeof_buffer())   editor->current_cursor = editor->current_gap_buffer->sizeof_buffer() - 1;
+                        editor->current_gap_buffer->set_point(editor->current_cursor);
                     } break;
                     case SDLK_LEFT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor > 0) {
-                            current_gap_buffer->set_point(cursor);
-                            current_gap_buffer->previous_char();
-                            cursor = current_gap_buffer->point_offset();
-                            if (current_gap_buffer->get_char() == '\n' && cursor > 0)   current_gap_buffer->previous_char();
-                            cursor = current_gap_buffer->point_offset();
+                        if (editor->current_cursor > 0) {
+                            editor->current_gap_buffer->set_point(editor->current_cursor);
+                            editor->current_gap_buffer->previous_char();
+                            editor->current_cursor = editor->current_gap_buffer->point_offset();
+                            if (editor->current_gap_buffer->get_char() == '\n' && editor->current_cursor > 0)   editor->current_gap_buffer->previous_char();
+                            editor->current_cursor = editor->current_gap_buffer->point_offset();
                         }
                     } break;
                     case SDLK_RIGHT: {
                         if (event.type != SDL_KEYDOWN) break;
-                        if (cursor < current_gap_buffer->sizeof_buffer() - 1) {
-                            current_gap_buffer->set_point(cursor);
-                            current_gap_buffer->next_char();
-                            if (current_gap_buffer->get_char() == '\n')   current_gap_buffer->next_char();
-                            cursor = current_gap_buffer->point_offset();
-                            if (cursor >= current_gap_buffer->sizeof_buffer())   cursor -= 2;
-                            current_gap_buffer->set_point(cursor);
+                        if (editor->current_cursor < editor->current_gap_buffer->sizeof_buffer() - 1) {
+                            editor->current_gap_buffer->set_point(editor->current_cursor);
+                            editor->current_gap_buffer->next_char();
+                            if (editor->current_gap_buffer->get_char() == '\n')   editor->current_gap_buffer->next_char();
+                            editor->current_cursor = editor->current_gap_buffer->point_offset();
+                            if (editor->current_cursor >= editor->current_gap_buffer->sizeof_buffer())   editor->current_cursor -= 2;
+                            editor->current_gap_buffer->set_point(editor->current_cursor);
                         }
                     } break;
                 }
                 continue;
             }
             if (event.type == SDL_TEXTINPUT) {
-                current_gap_buffer->set_point(cursor);
-                current_gap_buffer->put_char(event.text.text[0]);
-                cursor = current_gap_buffer->point_offset();
+                editor->current_gap_buffer->set_point(editor->current_cursor);
+                editor->current_gap_buffer->put_char(event.text.text[0]);
+                editor->current_cursor = editor->current_gap_buffer->point_offset();
                 continue;
             }
         }
 
         
         // Update
-        current_window->cursor = cursor;
+        editor->current_window->cursor = editor->current_cursor;
 
         // Render
-        render_layout(&layout, screen_surface, &theme);
-        SDL_UpdateWindowSurface(window);
+        render_layout(editor, &editor->root_layout);
+        SDL_UpdateWindowSurface(editor->window);
 
 
         // sleep (or not)
@@ -554,14 +585,14 @@ int main(int argc, char *argv[]) {
     }
 
 #if 1
-    current_gap_buffer->print_buffer();
+    editor->current_gap_buffer->print_buffer();
 #endif
 #if 1
     FILE *out;
     out = fopen("../tests/test_out.jai", "wb");
     defer { fclose(out); };
-    current_gap_buffer->set_point(0);
-    current_gap_buffer->save_buffer_to_file(out);
+    editor->current_gap_buffer->set_point(0);
+    editor->current_gap_buffer->save_buffer_to_file(out);
 #endif
 
     return 0;
