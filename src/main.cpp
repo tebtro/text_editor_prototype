@@ -304,6 +304,32 @@ void resize_screen(Layout *layout, int new_width, int new_height) {
     resize_layout(layout, rect);
 }
 
+void free_editor(Editor *editor) {
+    // free arrays
+    for (int i = 0; i < editor->buffers.count; ++i) {
+        free(editor->buffers.array[i]->gap_buffer.buffer);
+        free(editor->buffers.array[i]);
+    }
+    for (int i = 0; i < editor->windows.count; ++i) {
+        SDL_FreeSurface(editor->windows.array[i]->surface);
+        free(editor->windows.array[i]);
+    }
+    for (int i = 0; i < editor->layouts.count; ++i) {
+        free(editor->layouts.array[i]);
+    }
+
+    // free SDL
+    TTF_CloseFont(editor->theme->font);
+    
+    SDL_FreeSurface(editor->screen_surface);
+    SDL_DestroyWindow(editor->window);
+    SDL_Quit();
+    TTF_Quit();
+
+    // free editor, also the last thing
+    defer { free(editor); };
+}
+
 int main(int argc, char *argv[]) {
     char *input_file_path = nullptr;
     for (int i = 1; i < argc; ++i) {
@@ -325,8 +351,7 @@ int main(int argc, char *argv[]) {
     }
 
     Editor *editor = (Editor *) calloc(1, sizeof(Editor));
-    defer { free(editor); };
-    // @todo create a method to free everything
+    defer { free_editor(editor); };
     
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
@@ -334,12 +359,6 @@ int main(int argc, char *argv[]) {
     assert(editor->window);
     editor->screen_surface = SDL_GetWindowSurface(editor->window);
     assert(editor->screen_surface);
-    defer {
-        SDL_FreeSurface(editor->screen_surface);
-        SDL_DestroyWindow(editor->window);
-        SDL_Quit();
-        TTF_Quit();
-    };
 
 
     { 
@@ -358,26 +377,12 @@ int main(int argc, char *argv[]) {
         theme->cursor_fg = theme->bg;
         theme->cursor_bg = theme->fg;
     }
-    defer { TTF_CloseFont(editor->theme->font); };
 
     
     
     editor->buffers = {};
     editor->windows = {};
     editor->layouts = {};
-    defer {
-        for (int i = 0; i < editor->buffers.count; ++i) {
-            free(editor->buffers.array[i]->gap_buffer.buffer);
-            free(editor->buffers.array[i]);
-        }
-        for (int i = 0; i < editor->windows.count; ++i) {
-            SDL_FreeSurface(editor->windows.array[i]->surface);
-            free(editor->windows.array[i]);
-        }
-        for (int i = 0; i < editor->layouts.count; ++i) {
-            free(editor->layouts.array[i]);
-        }
-    };
 
     editor->root_layout = {};
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
