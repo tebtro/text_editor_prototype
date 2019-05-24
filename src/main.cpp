@@ -238,6 +238,7 @@ void render_layout(Editor *editor, Layout *layout) {
     Theme *theme = editor->theme;
     if (layout->window) {
         Gap_Buffer *gap_buffer = &layout->window->buffer->gap_buffer;
+        if (!gap_buffer)   return;
         gap_buffer->set_point(layout->window->cursor);
 
         SDL_FillRect(layout->window->surface, NULL, 0x000000);
@@ -304,6 +305,56 @@ void resize_screen(Layout *layout, int new_width, int new_height) {
     resize_layout(layout, rect);
 }
 
+Theme *load_theme() { 
+    Theme *theme = (Theme *) calloc(1, sizeof(Theme));
+    theme->font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
+    assert(theme->font);
+    {
+        int minx, maxx, miny, maxy, advance;
+        TTF_GlyphMetrics(theme->font, L'W', &minx, &maxx, &miny, &maxy, &advance);
+        theme->glyph_width = advance;
+        theme->glyph_height = TTF_FontLineSkip(theme->font) + 1;
+    }
+    theme->fg = {255, 255, 255, 0};
+    theme->bg = {0, 0, 0, 0};
+    theme->cursor_fg = theme->bg;
+    theme->cursor_bg = theme->fg;
+
+    return theme;
+}
+
+void make_base_layout(Editor *editor) {
+    SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    editor->root_layout.rect = rect;
+    Window *layout_window = make_window(editor, SCREEN_WIDTH, SCREEN_HEIGHT);
+    editor->root_layout.window = layout_window;
+    editor->root_layout.window->parent_layout = &editor->root_layout;
+
+    editor->current_window = editor->windows.array[0];
+    editor->current_cursor = 0; // offset from start of buffer
+}
+
+Editor *make_editor() {
+    Editor *editor = (Editor *) calloc(1, sizeof(Editor));
+
+    SDL_Init(SDL_INIT_VIDEO);
+    TTF_Init();
+    editor->window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
+    assert(editor->window);
+    editor->screen_surface = SDL_GetWindowSurface(editor->window);
+    assert(editor->screen_surface);
+
+    editor->theme = load_theme();
+
+    editor->buffers = {};
+    editor->windows = {};
+    editor->layouts = {};
+
+    make_base_layout(editor);
+
+    return editor;
+}
+
 void free_editor(Editor *editor) {
     // free arrays
     for (int i = 0; i < editor->buffers.count; ++i) {
@@ -345,66 +396,24 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    if (!input_file_path) {
-        printf("error: no input file!\n");
-        return -1;
-    }
 
-    Editor *editor = (Editor *) calloc(1, sizeof(Editor));
+    
+    Editor *editor = make_editor();
     defer { free_editor(editor); };
-    
-    SDL_Init(SDL_INIT_VIDEO);
-    TTF_Init();
-    editor->window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
-    assert(editor->window);
-    editor->screen_surface = SDL_GetWindowSurface(editor->window);
-    assert(editor->screen_surface);
 
 
-    { 
-        Theme *theme = (Theme *) calloc(1, sizeof(Theme));
-        editor->theme = theme;
-        theme->font = TTF_OpenFont("../run_tree/data/fonts/SourceCodePro.ttf", 16);
-        assert(theme->font);
-        {
-            int minx, maxx, miny, maxy, advance;
-            TTF_GlyphMetrics(theme->font, L'W', &minx, &maxx, &miny, &maxy, &advance);
-            theme->glyph_width = advance;
-            theme->glyph_height = TTF_FontLineSkip(theme->font) + 1;
-        }
-        theme->fg = {255, 255, 255, 0};
-        theme->bg = {0, 0, 0, 0};
-        theme->cursor_fg = theme->bg;
-        theme->cursor_bg = theme->fg;
+    if (input_file_path) {
+        Buffer *buffer = open_file(editor, input_file_path);
+        editor->root_layout.window->buffer = buffer;
+        editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;
     }
-
-    
-    
-    editor->buffers = {};
-    editor->windows = {};
-    editor->layouts = {};
-
-    editor->root_layout = {};
-    SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    editor->root_layout.rect = rect;
-    Window *layout_window = make_window(editor, SCREEN_WIDTH, SCREEN_HEIGHT);
-    editor->root_layout.window = layout_window;
-    editor->root_layout.window->parent_layout = &editor->root_layout;
-
-
-    Buffer *buffer = open_file(editor, input_file_path);
-    editor->root_layout.window->buffer = buffer;
-    
-    Buffer *buffer2 = open_file(editor, "../tests/test.jai");
-
-    editor->current_window = editor->windows.array[0];
-    editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;
 
 #if 1
+    Buffer *buffer2 = open_file(editor, "../tests/test.jai");
     split_current_window_horizontally(editor);
     // @todo refactor to change buffer in current window change_buffer(window, buffer2);
     editor->windows.array[1]->buffer = buffer2; // left_window->buffer;
-#endif
+
 #if 1
     split_current_window_vertically(editor);
 #endif
@@ -416,10 +425,9 @@ int main(int argc, char *argv[]) {
     // @todo delete current window
     // then change current window
 #endif
-
+#endif
     
-    editor->current_cursor = 0; // offset from start of buffer
-
+    
     b32 running = true;
     SDL_StartTextInput();
     defer { SDL_StopTextInput(); };
