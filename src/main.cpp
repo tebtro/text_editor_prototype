@@ -80,25 +80,25 @@ int main(int argc, char *argv[]) {
     if (input_file_path) {
         Buffer *buffer = open_file(editor, input_file_path);
         editor->root_layout.window->buffer = buffer;
-        editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;
+        editor->active_gap_buffer = &editor->active_window->buffer->gap_buffer;
     }
 
 #if 0
     Buffer *buffer2 = open_file(editor, "../tests/test.jai");
-    split_current_window_horizontally(editor);
-    // @todo refactor to change buffer in current window change_buffer(window, buffer2);
+    split_active_window_horizontally(editor);
+    // @todo refactor to change buffer in active window change_buffer(window, buffer2);
     editor->windows.array[1]->buffer = buffer2; // left_window->buffer;
 
 #if 1
-    split_current_window_vertically(editor);
+    split_active_window_vertically(editor);
 #endif
 #if 1
     // @todo functions to change window
     split_window_horizontally(editor, editor->windows.array[1]);
 #endif
 #if 0
-    // @todo delete current window
-    // then change current window
+    // @todo delete active window
+    // then change active window
 #endif
 #endif
     
@@ -135,26 +135,24 @@ int main(int argc, char *argv[]) {
                 break;
             }
             if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_ESCAPE)   running = !(event.type == SDL_KEYDOWN);
                 handle_command(editor, event.key.keysym.sym, event.key.keysym.mod);
-
-                switch (event.key.keysym.sym) {
-                    case SDLK_ESCAPE: {
-                        running = !(event.type == SDL_KEYDOWN);
-                    } break;
-                }
                 continue;
             }
+            if (event.type == SDL_MOUSEBUTTONDOWN) {
+                handle_command(editor, event.button.button);
+            }
             if (event.type == SDL_TEXTINPUT) {
-                editor->current_gap_buffer->set_point(editor->current_cursor);
-                editor->current_gap_buffer->put_char(event.text.text[0]);
-                editor->current_cursor = editor->current_gap_buffer->point_offset();
+                editor->active_gap_buffer->set_point(editor->active_cursor);
+                editor->active_gap_buffer->put_char(event.text.text[0]);
+                editor->active_cursor = editor->active_gap_buffer->point_offset();
                 continue;
             }
         }
 
         
         // Update
-        editor->current_window->cursor = editor->current_cursor;
+        editor->active_window->cursor = editor->active_cursor;
 
         // Render
         render_layout(editor, &editor->root_layout);
@@ -177,14 +175,14 @@ int main(int argc, char *argv[]) {
     }
 
 #if 1
-    editor->current_gap_buffer->print_buffer();
+    editor->active_gap_buffer->print_buffer();
 #endif
 #if 1
     FILE *out;
     out = fopen("../tests/test_out.jai", "wb");
     defer { fclose(out); };
-    editor->current_gap_buffer->set_point(0);
-    editor->current_gap_buffer->save_buffer_to_file(out);
+    editor->active_gap_buffer->set_point(0);
+    editor->active_gap_buffer->save_buffer_to_file(out);
 #endif
 
     return 0;

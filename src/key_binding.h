@@ -26,5 +26,6 @@ struct Bind_Helper {
 void bind(Editor *editor, std::string key, u16 modifiers, Command_Function_Ptr command_function_ptr);
 void load_default_bindings(Editor *editor);
 void handle_command(Editor *editor, SDL_Keycode keycode, u16 modifiers);
+void handle_command(Editor *editor, u8 mouse_button);
 
 #endif

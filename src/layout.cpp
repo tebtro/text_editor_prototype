@@ -90,6 +90,6 @@ void make_base_layout(Editor *editor) {
     editor->root_layout.window = layout_window;
     editor->root_layout.window->parent_layout = &editor->root_layout;
 
-    editor->current_window = editor->windows.array[0];
-    editor->current_cursor = 0; // offset from start of buffer
+    editor->active_window = editor->windows.array[0];
+    editor->active_cursor = 0; // offset from start of buffer
 }

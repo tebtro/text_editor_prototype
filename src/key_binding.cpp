@@ -92,8 +92,10 @@ void load_default_bindings(Editor *editor) {
     bind(editor, "Down",   KMOD_NONE, move_down);
     bind(editor, "Left",   KMOD_NONE, move_left);
 
-    bind(editor, "H", KMOD_ALT, split_current_window_horizontally);
-    bind(editor, "V", KMOD_ALT, split_current_window_vertically);
+    bind(editor, "H", KMOD_ALT, split_active_window_horizontally);
+    bind(editor, "V", KMOD_ALT, split_active_window_vertically);
+
+    bind(editor, "LMOUSE", KMOD_NONE, change_active_window_from_mouse_click);
 }
 
 void execute_command(Editor *editor, std::string key) {
@@ -128,4 +130,15 @@ void handle_command(Editor *editor, SDL_Keycode keycode, u16 modifiers) {
 
     
     execute_command(editor, modifiers_string.str());
+}
+
+void handle_command(Editor *editor, u8 mouse_button) {
+    std::string key;
+    if (mouse_button == SDL_BUTTON_LEFT)   key = "LMOUSE"; // printf("LEFT MOUSE BUTTON\n");
+    if (mouse_button == SDL_BUTTON_MIDDLE) key = "MMOUSE"; // printf("MIDDLE MOUSE BUTTON\n");
+    if (mouse_button == SDL_BUTTON_RIGHT)  key = "RMOUSE"; // printf("RIGHT MOUSE BUTTON\n");
+    if (mouse_button == SDL_BUTTON_X1)     key = "X1MOUSE"; // printf("X1 MOUSE BUTTON\n");
+    if (mouse_button == SDL_BUTTON_X2)     key = "X2MOUSE"; // printf("X2 MOUSE BUTTON\n");
+
+    execute_command(editor, key);
 }

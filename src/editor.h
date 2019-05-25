@@ -41,9 +41,9 @@ struct Editor {
 
     Layout root_layout;
 
-    Window     *current_window;
-    Gap_Buffer *current_gap_buffer;
-    u64         current_cursor;
+    Window     *active_window;
+    Gap_Buffer *active_gap_buffer;
+    u64         active_cursor;
 };
 
 

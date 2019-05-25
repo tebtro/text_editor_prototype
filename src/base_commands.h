@@ -21,7 +21,9 @@ COMMAND_SIG(move_down);
 COMMAND_SIG(move_left);
 COMMAND_SIG(move_right);
 
-COMMAND_SIG(split_current_window_horizontally);
-COMMAND_SIG(split_current_window_vertically);
+COMMAND_SIG(split_active_window_horizontally);
+COMMAND_SIG(split_active_window_vertically);
+
+COMMAND_SIG(change_active_window_from_mouse_click);
 
 #endif
