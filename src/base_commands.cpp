@@ -113,3 +113,12 @@ COMMAND_SIG(move_right) {
         editor->current_gap_buffer->set_point(editor->current_cursor);
     }
 }
+
+
+COMMAND_SIG(split_current_window_horizontally) {
+    split_window_horizontally(editor, editor->current_window);
+}
+
+COMMAND_SIG(split_current_window_vertically) {
+    split_window_vertically(editor, editor->current_window);
+}

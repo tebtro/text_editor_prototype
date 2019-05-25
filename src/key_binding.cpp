@@ -57,12 +57,15 @@ std::stringstream modifiers_to_string(u16 modifiers) {
     
     if (modifiers & KMOD_LSHIFT && !(modifiers & KMOD_RSHIFT))   modifiers_array.push("SHIFT"); // printf("    SHIFT\n");
     else if (modifiers & KMOD_RSHIFT && !(modifiers & KMOD_LSHIFT))   modifiers_array.push("SHIFT"); // printf("    SHIFT\n");
+    else if (modifiers & KMOD_SHIFT)   modifiers_array.push("SHIFT"); // printf("    SHIFT\n");
 
     if (modifiers & KMOD_LCTRL && !(modifiers & KMOD_RCTRL))   modifiers_array.push("CTRL"); // printf("    CTRL\n");
     else if (modifiers & KMOD_RCTRL && !(modifiers & KMOD_LCTRL))   modifiers_array.push("CTRL"); // printf("    CTRL\n");
+    else if (modifiers & KMOD_CTRL)   modifiers_array.push("CTRL"); // printf("    CTRL\n");
 
     if (modifiers & KMOD_LALT && !(modifiers & KMOD_RALT))   modifiers_array.push("ALT"); // printf("    ALT\n");
     else if (modifiers & KMOD_RALT && !(modifiers & KMOD_LALT))   modifiers_array.push("ALT"); // printf("    ALT\n");
+    else if (modifiers & KMOD_ALT)   modifiers_array.push("ALT"); // printf("    ALT\n");
 
     std::stringstream ss;
     for (int i = 0; i < modifiers_array.count; i++) {
@@ -78,15 +81,19 @@ void bind(Editor *editor, std::string key, u16 modifiers, Command_Function_Ptr c
     key_binding << key;
     // printf("bind key: %s\n", key_binding.str().c_str());
 
-    editor->bind_context->bindings[key] = command_function_ptr;
+    editor->bind_context->bindings[key_binding.str()] = command_function_ptr;
 }
 
 void load_default_bindings(Editor *editor) {
+    bind(editor, "Backspace", KMOD_NONE, backspace_char);
     bind(editor, "Return", KMOD_NONE, newline);
     bind(editor, "Up",     KMOD_NONE, move_up);
     bind(editor, "Right",  KMOD_NONE, move_right);
     bind(editor, "Down",   KMOD_NONE, move_down);
     bind(editor, "Left",   KMOD_NONE, move_left);
+
+    bind(editor, "H", KMOD_ALT, split_current_window_horizontally);
+    bind(editor, "V", KMOD_ALT, split_current_window_vertically);
 }
 
 void execute_command(Editor *editor, std::string key) {
@@ -94,7 +101,7 @@ void execute_command(Editor *editor, std::string key) {
     std::map<std::string, Command_Function_Ptr>::iterator it;
     it = editor->bind_context->bindings.find(key);
     if (it == editor->bind_context->bindings.end())   return;
-    
+
     Command_Function_Ptr command_function_ptr = it->second;
     if (!command_function_ptr)   return;
 

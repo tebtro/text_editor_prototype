@@ -31,25 +31,18 @@ void split_window_horizontally(Editor *editor, Window *window) {
     Window *left_window = layout->window;
     layout->window = nullptr;
 
-    Layout *left_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w / 2, layout->rect.h, left_window);
+    int left_w = layout->rect.w / 2;
+    Layout *left_layout = make_layout(editor, layout->rect.x, layout->rect.y, left_w, layout->rect.h, left_window);
 
-    Window *right_window = make_window(editor, layout->rect.w / 2, layout->rect.h);
+    int right_w = left_w;
+    if (layout->rect.w != left_w * 2)   right_w = layout->rect.w - left_w;
+    Window *right_window = make_window(editor, right_w, layout->rect.h);
     right_window->buffer = left_window->buffer;
-    Layout *right_layout = make_layout(editor, layout->rect.x + (layout->rect.w / 2), layout->rect.y,
-                                       layout->rect.w / 2, layout->rect.h, right_window);
+    Layout *right_layout = make_layout(editor, layout->rect.x + left_w, layout->rect.y,
+                                       right_w, layout->rect.h, right_window);
 
     layout->sub_layout1  = left_layout;
     layout->sub_layout2 = right_layout;
-
-
-    assert(layout->rect.w == (left_layout->rect.w + right_layout->rect.w));
-    // this below is not needed depending on if we use and array for children or just a left and right layout
-    // if !layout->window the layout is already split so split and resize all 3 childs
-    // @todo if sum of children widths != layout with then just add the difference to one of the childs
-}
-
-void split_current_window_horizontally(Editor *editor) {
-    split_window_horizontally(editor, editor->current_window);
 }
 
 // @copynpaste from split_window_horizontally
@@ -60,25 +53,18 @@ void split_window_vertically(Editor *editor, Window *window) {
     Window *top_window = layout->window;
     layout->window = nullptr;
 
-    Layout *top_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h / 2, top_window);
+    int top_height = layout->rect.h / 2;
+    Layout *top_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w, top_height, top_window);
 
-    Window *bottom_window = make_window(editor, layout->rect.w, layout->rect.h / 2);
+    int bottom_height = top_height;
+    if (layout->rect.h != top_height * 2)   bottom_height = layout->rect.h - top_height;
+    Window *bottom_window = make_window(editor, layout->rect.w, bottom_height);
     bottom_window->buffer = top_window->buffer;
-    Layout *bottom_layout = make_layout(editor, layout->rect.x, layout->rect.y + (layout->rect.h / 2),
-                                        layout->rect.w, layout->rect.h / 2, bottom_window);
+    Layout *bottom_layout = make_layout(editor, layout->rect.x, layout->rect.y + top_height,
+                                        layout->rect.w, bottom_height, bottom_window);
 
     layout->sub_layout1 = top_layout;
     layout->sub_layout2 = bottom_layout;
-
-    
-    assert(layout->rect.h == (top_layout->rect.h + bottom_layout->rect.h));
-    // this below is not needed depending on if we use and array for children or just a left and right layout
-    // if !layout->window the layout is already split so split and resize all 3 childs
-    // @todo if sum of children widths != layout with then just add the difference to one of the childs
-}
-
-void split_current_window_vertically(Editor *editor) {
-    split_window_vertically(editor, editor->current_window);
 }
 
 void resize_layout(Layout *layout, SDL_Rect rect) {

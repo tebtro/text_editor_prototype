@@ -21,4 +21,7 @@ COMMAND_SIG(move_down);
 COMMAND_SIG(move_left);
 COMMAND_SIG(move_right);
 
+COMMAND_SIG(split_current_window_horizontally);
+COMMAND_SIG(split_current_window_vertically);
+
 #endif

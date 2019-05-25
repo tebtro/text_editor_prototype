@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
         editor->current_gap_buffer = &editor->current_window->buffer->gap_buffer;
     }
 
-#if 1
+#if 0
     Buffer *buffer2 = open_file(editor, "../tests/test.jai");
     split_current_window_horizontally(editor);
     // @todo refactor to change buffer in current window change_buffer(window, buffer2);
