@@ -37,8 +37,7 @@ struct Layout {
 };
 
 Layout *make_layout(Editor *editor, int x, int y, int width, int height, Window *window);
-void split_window_horizontally(Editor *editor, Window *window);
-void split_window_vertically(Editor *editor, Window *window);
+void split_window(Editor *editor, Window *window, enum32(Layout_Orientation) orientation);
 
 void resize_layout(Layout *layout, SDL_Rect rect);
 void resize_screen(Layout *layout, int new_width, int new_height);

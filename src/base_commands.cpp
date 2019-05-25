@@ -114,11 +114,12 @@ COMMAND_SIG(move_right) {
     }
 }
 
+#include "layout.h"
 
 COMMAND_SIG(split_current_window_horizontally) {
-    split_window_horizontally(editor, editor->current_window);
+    split_window(editor, editor->current_window, Layout_Orientation::Horizontal);
 }
 
 COMMAND_SIG(split_current_window_vertically) {
-    split_window_vertically(editor, editor->current_window);
+    split_window(editor, editor->current_window, Layout_Orientation::Vertical);
 }

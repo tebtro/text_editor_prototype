@@ -55,16 +55,6 @@ void split_window(Editor *editor, Window *window, enum32(Layout_Orientation) ori
     layout->sub_layout2 = second_layout;
 }
 
-void split_window_horizontally(Editor *editor, Window *window) {
-    split_window(editor, window, Layout_Orientation::Horizontal);
-    return;
-}
-
-void split_window_vertically(Editor *editor, Window *window) {
-    split_window(editor, window, Layout_Orientation::Vertical);
-    return;
-}
-
 void resize_layout(Layout *layout, SDL_Rect rect) {
     if (layout->window) {
         layout->rect = rect;
