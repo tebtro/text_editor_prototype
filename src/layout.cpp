@@ -24,47 +24,45 @@ Layout *make_layout(Editor *editor, int x, int y, int width, int height, Window 
     return layout;
 }
 
-void split_window_horizontally(Editor *editor, Window *window) {
+void split_window(Editor *editor, Window *window, enum32(Layout_Orientation) orientation) {
     Layout *layout = window->parent_layout;
 
-    layout->orientation = Layout_Orientation::Horizontal;
-    Window *left_window = layout->window;
+    layout->orientation = orientation;
+    Window *first_window = layout->window;
     layout->window = nullptr;
 
-    int left_w = layout->rect.w / 2;
-    Layout *left_layout = make_layout(editor, layout->rect.x, layout->rect.y, left_w, layout->rect.h, left_window);
+    SDL_Rect first_rect = layout->rect;
+    if (orientation == Layout_Orientation::Horizontal)   first_rect.w = first_rect.w / 2;
+    if (orientation == Layout_Orientation::Vertical)     first_rect.h = first_rect.h / 2;
 
-    int right_w = left_w;
-    if (layout->rect.w != left_w * 2)   right_w = layout->rect.w - left_w;
-    Window *right_window = make_window(editor, right_w, layout->rect.h);
-    right_window->buffer = left_window->buffer;
-    Layout *right_layout = make_layout(editor, layout->rect.x + left_w, layout->rect.y,
-                                       right_w, layout->rect.h, right_window);
+    Layout *first_layout = make_layout(editor, first_rect.x, first_rect.y, first_rect.w, first_rect.h, first_window);
 
-    layout->sub_layout1  = left_layout;
-    layout->sub_layout2 = right_layout;
+    SDL_Rect second_rect = layout->rect;
+    if (orientation == Layout_Orientation::Horizontal) {
+        second_rect.x += first_rect.w;
+        if (layout->rect.w != first_rect.w * 2)   second_rect.w = layout->rect.w - first_rect.w;
+    }
+    if (orientation == Layout_Orientation::Vertical) {
+        second_rect.y += first_rect.h;
+        if (layout->rect.h != first_rect.h * 2)   second_rect.h = layout->rect.h - first_rect.h;
+    }
+    Window *second_window = make_window(editor, second_rect.w, second_rect.h);
+    second_window->buffer = first_window->buffer;
+    Layout *second_layout = make_layout(editor, second_rect.x, second_rect.y,
+                                        second_rect.w, second_rect.h, second_window);
+
+    layout->sub_layout1 = first_layout;
+    layout->sub_layout2 = second_layout;
 }
 
-// @copynpaste from split_window_horizontally
+void split_window_horizontally(Editor *editor, Window *window) {
+    split_window(editor, window, Layout_Orientation::Horizontal);
+    return;
+}
+
 void split_window_vertically(Editor *editor, Window *window) {
-    Layout *layout = window->parent_layout;
-
-    layout->orientation = Layout_Orientation::Vertical;
-    Window *top_window = layout->window;
-    layout->window = nullptr;
-
-    int top_height = layout->rect.h / 2;
-    Layout *top_layout = make_layout(editor, layout->rect.x, layout->rect.y, layout->rect.w, top_height, top_window);
-
-    int bottom_height = top_height;
-    if (layout->rect.h != top_height * 2)   bottom_height = layout->rect.h - top_height;
-    Window *bottom_window = make_window(editor, layout->rect.w, bottom_height);
-    bottom_window->buffer = top_window->buffer;
-    Layout *bottom_layout = make_layout(editor, layout->rect.x, layout->rect.y + top_height,
-                                        layout->rect.w, bottom_height, bottom_window);
-
-    layout->sub_layout1 = top_layout;
-    layout->sub_layout2 = bottom_layout;
+    split_window(editor, window, Layout_Orientation::Vertical);
+    return;
 }
 
 void resize_layout(Layout *layout, SDL_Rect rect) {
