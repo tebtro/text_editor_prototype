@@ -13,10 +13,16 @@
 #include "iml_general.h"
 
 #include "window.h"
+#include "key_binding.h"
 
 Editor *make_editor() {
-    Editor *editor = (Editor *) calloc(1, sizeof(Editor));
+    // new because of std::map not getting initialized or something.   ugh ... 
+    Editor *editor = new Editor(); // (Editor *) calloc(1, sizeof(Editor));
 
+    // Bind_Helper init
+    editor->bind_context = new Bind_Helper(); // (Bind_Helper *) calloc(1, sizeof(Bind_Helper));
+
+    // SDL init
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     editor->window = SDL_CreateWindow("vis", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE );
@@ -36,6 +42,8 @@ Editor *make_editor() {
 }
 
 void free_editor(Editor *editor) {
+    free(editor->bind_context);
+
     // free arrays
     for (int i = 0; i < editor->buffers.count; ++i) {
         free(editor->buffers.array[i]->gap_buffer.buffer);

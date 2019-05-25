@@ -17,17 +17,19 @@
 #include "iml_types.h"
 #include "iml_array.h"
 
-
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
 
+struct Bind_Helper;
 struct Buffer;
 struct Window;
 struct Layout;
 struct Gap_Buffer;
 
 struct Editor {
+    Bind_Helper *bind_context;
+
     SDL_Window  *window;
     SDL_Surface *screen_surface;
 
