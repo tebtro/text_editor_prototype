@@ -26,7 +26,7 @@ set AdditionalLinkerFlags=-incremental:no /SUBSYSTEM:CONSOLE /LIBPATH:..\src\lib
 set Libraries=user32.lib gdi32.lib kernel32.lib glu32.lib gdi32.lib  opengl32.lib
 
 :: cpp Files
-set CppFiles=..\src\main.cpp ..\src\gap_buffer.cpp
+set CppFiles=..\src\main.cpp ..\src\gap_buffer.cpp ..\src\theme.cpp ..\src\window.cpp ..\src\layout.cpp ..\src\editor.cpp ..\src\renderer.cpp
 
 
 cl /Fe:text_editor %CommonCompilerFlags%  %AdditionalIncludeDirectories%  %CppFiles% /link %AdditionalLinkerFlags% %Libraries%

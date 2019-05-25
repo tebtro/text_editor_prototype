@@ -9,6 +9,7 @@
 
 #define GAP_BUFFER_H
 
+#include <iostream>
 #include "iml_types.h"
 
 #define DEFAULT_GAP_SIZE 20
