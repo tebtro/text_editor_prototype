@@ -94,6 +94,7 @@ void load_default_bindings(Editor *editor) {
 
     bind(editor, "H", KMOD_ALT, split_active_window_horizontally);
     bind(editor, "V", KMOD_ALT, split_active_window_vertically);
+    bind(editor, "D", KMOD_ALT, delete_active_window);
 
     bind(editor, "LMOUSE", KMOD_NONE, change_active_window_from_mouse_click);
 }

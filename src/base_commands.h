@@ -25,5 +25,6 @@ COMMAND_SIG(split_active_window_horizontally);
 COMMAND_SIG(split_active_window_vertically);
 
 COMMAND_SIG(change_active_window_from_mouse_click);
+COMMAND_SIG(delete_active_window);
 
 #endif

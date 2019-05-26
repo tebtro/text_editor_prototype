@@ -37,5 +37,6 @@ struct Window {
 
 void resize_window(Window *window, int width, int height);
 Window *make_window(Editor *editor, int width, int height);
+void change_active_window(Editor *editor, Window *window);
 
 #endif

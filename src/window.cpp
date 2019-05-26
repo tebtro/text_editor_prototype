@@ -21,3 +21,10 @@ Window *make_window(Editor *editor, int width, int height) {
     resize_window(window, width, height);
     return window;
 }
+
+void change_active_window(Editor *editor, Window *window) {
+    if (!window)   return;
+    editor->active_window     = window;
+    editor->active_gap_buffer = &window->buffer->gap_buffer;
+    editor->active_cursor     = window->cursor;
+}

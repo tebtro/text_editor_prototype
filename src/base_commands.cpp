@@ -6,6 +6,7 @@
    $Notice: (C) Copyright 2018 by Rentro, Inc. All Rights Reserved. $
    ======================================================================== */
 
+#include <assert.h>
 #include "base_commands.h"
 
 COMMAND_SIG(newline) {
@@ -132,20 +133,87 @@ COMMAND_SIG(change_active_window_from_mouse_click) {
     int y;
     SDL_GetMouseState(&x, &y);
 
-    //printf("mouse click: {x: %d, y: %d}", x, y);
+    // printf("mouse click: {x: %d, y: %d}\n", x, y);
 
     Window *window_under_cursor;
     for (int i = 0; i < editor->windows.count; ++i) {
         Layout *layout = editor->windows.array[i]->parent_layout;
         if (layout->rect.x < x && x < (layout->rect.x + layout->rect.w) &&
             layout->rect.y < y && y < (layout->rect.y + layout->rect.h)) {
-            // printf("window_under_cursor: {x: %d, y: %d, w: %d, h: %d}", layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h);
+            // printf("window_under_cursor: {x: %d, y: %d, w: %d, h: %d}\n", layout->rect.x, layout->rect.y, layout->rect.w, layout->rect.h);
             window_under_cursor = editor->windows.array[i];
         }
     }
     if (!window_under_cursor)   return;
 
-    editor->active_window     = window_under_cursor;
-    editor->active_gap_buffer = &window_under_cursor->buffer->gap_buffer;
-    editor->active_cursor     = window_under_cursor->cursor;
+    change_active_window(editor, window_under_cursor);
+}
+
+COMMAND_SIG(delete_active_window) {
+    if (editor->windows.count == 1)   return;
+
+    Layout *layout = editor->active_window->parent_layout->parent_layout;
+
+    if (layout->sub_layout1->window && layout->sub_layout2->window) {
+        if (layout->sub_layout1->window == editor->active_window) {
+            layout->window = layout->sub_layout2->window;
+        }
+        if (layout->sub_layout2->window == editor->active_window) {
+            layout->window = layout->sub_layout1->window;
+        }
+        layout->window->parent_layout = layout;
+
+        {
+            int index = editor->windows.get_index_for_element(editor->active_window);
+            free(editor->windows.array[index]);
+            editor->windows.remove(index);
+        }
+
+        {
+            int index = editor->layouts.get_index_for_element(layout->sub_layout1);
+            free(editor->layouts.array[index]);
+            editor->layouts.remove(index);
+            layout->sub_layout1 = nullptr;
+        }
+        {
+            int index = editor->layouts.get_index_for_element(layout->sub_layout2);
+            free(editor->layouts.array[index]);
+            editor->layouts.remove(index);
+            layout->sub_layout2 = nullptr;
+        }
+    } else {
+        Layout *sub_layout;
+        Window *delete_window;
+        Layout *delete_layout;
+        if (layout->sub_layout1->window) {
+            sub_layout = layout->sub_layout2;
+            delete_window = layout->sub_layout1->window;
+            delete_layout = layout->sub_layout1;
+        }
+        if (layout->sub_layout2->window) {
+            sub_layout = layout->sub_layout1;
+            delete_window = layout->sub_layout2->window;
+            delete_layout = layout->sub_layout2;
+        }
+        layout->orientation = sub_layout->orientation;
+        layout->sub_layout1 = sub_layout->sub_layout1;
+        layout->sub_layout1->parent_layout = layout;
+        layout->sub_layout2 = sub_layout->sub_layout2;
+        layout->sub_layout2->parent_layout = layout;
+
+
+        {
+            int index = editor->windows.get_index_for_element(delete_window);
+            free(editor->windows.array[index]);
+            editor->windows.remove(index);
+        }
+        {
+            int index = editor->layouts.get_index_for_element(delete_layout);
+            free(editor->layouts.array[index]);
+            editor->layouts.remove(index);
+        }
+    }
+
+    resize_layout(&editor->root_layout, editor->root_layout.rect);
+    change_active_window(editor, layout->window);
 }

@@ -36,6 +36,7 @@ void split_window(Editor *editor, Window *window, enum32(Layout_Orientation) ori
     if (orientation == Layout_Orientation::Vertical)     first_rect.h = first_rect.h / 2;
 
     Layout *first_layout = make_layout(editor, first_rect.x, first_rect.y, first_rect.w, first_rect.h, first_window);
+    first_layout->parent_layout = layout;
 
     SDL_Rect second_rect = layout->rect;
     if (orientation == Layout_Orientation::Horizontal) {
@@ -48,22 +49,21 @@ void split_window(Editor *editor, Window *window, enum32(Layout_Orientation) ori
     }
     Window *second_window = make_window(editor, second_rect.w, second_rect.h);
     second_window->buffer = first_window->buffer;
-    Layout *second_layout = make_layout(editor, second_rect.x, second_rect.y,
-                                        second_rect.w, second_rect.h, second_window);
+    Layout *second_layout = make_layout(editor, second_rect.x, second_rect.y, second_rect.w, second_rect.h, second_window);
+    second_layout->parent_layout = layout;
 
     layout->sub_layout1 = first_layout;
     layout->sub_layout2 = second_layout;
 }
 
 void resize_layout(Layout *layout, SDL_Rect rect) {
+    layout->rect = rect;
     if (layout->window) {
-        layout->rect = rect;
         layout->window->rect = rect;
         resize_window(layout->window, rect.w, rect.h);
         return;
     }
 
-    layout->rect = rect;
     if (layout->orientation == Layout_Orientation::Horizontal) {
         rect.w = rect.w / 2;
         resize_layout(layout->sub_layout1, rect);
@@ -84,6 +84,7 @@ void resize_screen(Layout *layout, int new_width, int new_height) {
 }
 
 void make_base_layout(Editor *editor) {
+    editor->layouts.push(&editor->root_layout);
     SDL_Rect rect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
     editor->root_layout.rect = rect;
     Window *layout_window = make_window(editor, SCREEN_WIDTH, SCREEN_HEIGHT);
