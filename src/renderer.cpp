@@ -20,8 +20,8 @@ void render_glyph(SDL_Surface *window_surface, Theme *theme,
     SDL_Color fg = theme->fg;
     SDL_Color bg = theme->bg;
     if (render_cursor) {
-        fg = theme->bg;
-        bg = theme->fg;
+        fg = theme->cursor_fg;
+        bg = theme->cursor_bg;
     }
     auto surface = TTF_RenderGlyph_Shaded(theme->font, ch, fg, bg);
     defer {
@@ -46,7 +46,14 @@ void render_window(Editor *editor, Layout *layout) {
     if (!gap_buffer)   return;
     gap_buffer->set_point(layout->window->cursor);
 
-    SDL_FillRect(layout->window->surface, NULL, 0x000000);
+    // @todo move into function to get the map_rgba from SDL_Color
+    SDL_Surface *rgb_surface = SDL_CreateRGBSurface(0, layout->rect.w, layout->rect.h, 32, 0, 0, 0, 0);
+    u32 map_rgba = SDL_MapRGBA(rgb_surface->format,
+                               theme->bg.r,
+                               theme->bg.g,
+                               theme->bg.b,
+                               theme->bg.a);
+    SDL_FillRect(layout->window->surface, NULL, map_rgba);
     u64 line = 0;
     u64 cursor_line = 0;
     u64 offset = 0;

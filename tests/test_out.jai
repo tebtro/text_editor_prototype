@@ -20,6 +20,12 @@ Some_Struct :: struct {
     some_variable: bool;
 };
 
+hello sailor is this the end of the buffer or not 
+
+
+
+
+
 test :: () -> string {
     x: int = 4;
     {
@@ -49,8 +55,7 @@ test :: () -> string {
     q : int = 123;
     q = 55;
     r: int = a + 5;
-    s: bool = a < 5
-
+    s: bool = a < 5;
 
     // test identifier aligner
     //some_struct: Some_Struct = null;
@@ -122,9 +127,6 @@ fibonacci :: (x: int) -> int {
     if x == 0 || x == 1 return x;
     return fibonacci(x - 1) + fibonacci(x - 2);
 }
-
-hello 
-sailor
 
 main :: () -> int {
     printf("Hello Sailor!\n");

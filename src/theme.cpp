@@ -20,10 +20,10 @@ Theme *load_theme() {
         theme->glyph_width = advance;
         theme->glyph_height = TTF_FontLineSkip(theme->font) + 1;
     }
-    theme->fg = {255, 255, 255, 0};
-    theme->bg = {0, 0, 0, 0};
+    theme->fg = {189, 184, 164, 0}; // {255, 255, 255, 0};
+    theme->bg = {7, 38, 39, 0}; // {0, 0, 0, 0};
     theme->cursor_fg = theme->bg;
-    theme->cursor_bg = theme->fg;
+    theme->cursor_bg = {143, 238, 142, 0}; // theme->fg;
 
     return theme;
 }
