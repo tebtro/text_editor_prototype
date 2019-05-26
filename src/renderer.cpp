@@ -48,6 +48,7 @@ void render_window(Editor *editor, Layout *layout) {
 
     SDL_FillRect(layout->window->surface, NULL, 0x000000);
     u64 line = 0;
+    u64 cursor_line = 0;
     u64 offset = 0;
     char *temp = gap_buffer->buffer;
 
@@ -63,6 +64,10 @@ void render_window(Editor *editor, Layout *layout) {
             if (c == '\n') {
                 newline_count++;
             }
+            if (temp - 1 == gap_buffer->point) { // :cursor_scroll
+                layout->window->scroll_line_offset--;
+                editor->active_scroll_line_offset--;
+            }
             if (newline_count == layout->window->scroll_line_offset)   break;
         }
     }
@@ -75,6 +80,7 @@ void render_window(Editor *editor, Layout *layout) {
         if (c == '\n') { // @todo handle soft line breaks (\r), ...
             if (temp - 1 == gap_buffer->point) {
                 render_glyph(layout->window->surface, theme, ' ', offset, line, true);
+                cursor_line = line;
             }
             line++;
             offset = 0;
@@ -82,10 +88,15 @@ void render_window(Editor *editor, Layout *layout) {
         }
         if (temp - 1 == gap_buffer->point) {
             render_glyph(layout->window->surface, theme, c, offset, line, true);
+            cursor_line = line;
         } else {
             render_glyph(layout->window->surface, theme, c, offset, line);
         }
         offset++;
+    }
+    if ((cursor_line * theme->glyph_height) > layout->window->rect.h) { // :cursor_scroll // @todo not consisten set widnow x y
+        layout->window->scroll_line_offset++;
+        editor->active_scroll_line_offset++;
     }
     SDL_Rect rect = {0,0,layout->window->rect.w,layout->window->rect.h};
     SDL_BlitSurface(layout->window->surface, &rect,
