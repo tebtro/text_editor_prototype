@@ -44,6 +44,7 @@ struct Editor {
     Window     *active_window;
     Gap_Buffer *active_gap_buffer;
     u64         active_cursor;
+    int         active_scroll_line_offset = 0;
 };
 
 

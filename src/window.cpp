@@ -27,4 +27,5 @@ void change_active_window(Editor *editor, Window *window) {
     editor->active_window     = window;
     editor->active_gap_buffer = &window->buffer->gap_buffer;
     editor->active_cursor     = window->cursor;
+    editor->active_scroll_line_offset = window->scroll_line_offset;
 }

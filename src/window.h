@@ -28,6 +28,7 @@ struct Window {
     Buffer *buffer;
     // cursor should maybe be on buffer
     u64 cursor = 0; // offset from start of buffer
+    int scroll_line_offset = 0;
 
 
     SDL_Rect rect;

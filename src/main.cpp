@@ -141,6 +141,12 @@ int main(int argc, char *argv[]) {
             }
             if (event.type == SDL_MOUSEBUTTONDOWN) {
                 handle_command(editor, event.button.button);
+                continue;
+            }
+            if (event.type == SDL_MOUSEWHEEL) {
+                editor->active_scroll_line_offset += (event.wheel.y * -1);   // coordinate system is going downwards. idk
+                if (editor->active_scroll_line_offset < 0)   editor->active_scroll_line_offset = 0;
+                continue;
             }
             if (event.type == SDL_TEXTINPUT) {
                 editor->active_gap_buffer->set_point(editor->active_cursor);
@@ -153,6 +159,7 @@ int main(int argc, char *argv[]) {
         
         // Update
         editor->active_window->cursor = editor->active_cursor;
+        editor->active_window->scroll_line_offset = editor->active_scroll_line_offset;
 
         // Render
         render_layout(editor, &editor->root_layout);
