@@ -10,7 +10,40 @@
     */
 */
 
-he
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 foo: int = 4;
 
@@ -21,6 +54,13 @@ Some_Struct :: struct {
     foo: int;
     some_variable: bool;
 };
+
+
+
+
+
+
+
 
 test :: () -> string {
     x: int = 4;
@@ -94,6 +134,8 @@ test_return :: () -> int {
     i := "Hello Sailor!";
     return 123;
 }
+
+
 
 test_if :: () -> bool {
     x: bool = cast(bool) true;
