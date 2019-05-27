@@ -10,6 +10,8 @@
     */
 */
 
+he
+
 foo: int = 4;
 
 SOME_CONST :: 2;
@@ -19,12 +21,6 @@ Some_Struct :: struct {
     foo: int;
     some_variable: bool;
 };
-
-hello sailor is this the end of the buffer or not 
-
-
-
-
 
 test :: () -> string {
     x: int = 4;

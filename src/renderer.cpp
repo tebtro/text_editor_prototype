@@ -33,7 +33,7 @@ void render_glyph(SDL_Surface *window_surface, Theme *theme,
     }
     width = surface->w;
     height = surface->h;
-    SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, width, height};
+    SDL_Rect rect = {x * glyph_width, y * glyph_height, width, height};
     SDL_Rect rect_font_surface = {0,0,width,height};
     SDL_BlitSurface(surface, &rect_font_surface , window_surface, &rect);
 }
@@ -48,15 +48,16 @@ void render_window(Editor *editor, Layout *layout) {
 
     // @todo move into function to get the map_rgba from SDL_Color
     SDL_Surface *rgb_surface = SDL_CreateRGBSurface(0, layout->rect.w, layout->rect.h, 32, 0, 0, 0, 0);
+    defer { SDL_FreeSurface(rgb_surface); };
     u32 map_rgba = SDL_MapRGBA(rgb_surface->format,
                                theme->bg.r,
                                theme->bg.g,
                                theme->bg.b,
                                theme->bg.a);
     SDL_FillRect(layout->window->surface, NULL, map_rgba);
-    u64 line = 0;
-    u64 cursor_line = 0;
-    u64 offset = 0;
+    int line = 0;
+    int cursor_line = 0;
+    int offset = 0;
     char *temp = gap_buffer->buffer;
 
     // eat scroll offset lines

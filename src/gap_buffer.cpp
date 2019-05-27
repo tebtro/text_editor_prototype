@@ -71,7 +71,7 @@ void Gap_Buffer::expand_buffer(u64 size) {
     if (((buffer_end - buffer) + size) > sizeof_buffer()) {
         char *old_buffer = buffer;
 
-        int new_buffer_size = (buffer_end - buffer) + size + gap_size;
+        u64 new_buffer_size = (buffer_end - buffer) + size + gap_size;
 
         buffer = (char *) realloc(buffer, new_buffer_size);
 
@@ -220,7 +220,7 @@ Gap_Buffer make_gap_buffer(int gap_size) {
 
 Gap_Buffer make_gap_buffer(FILE *file, int gap_size) {
     struct stat file_stat;
-    fstat(fileno(file), &file_stat);
+    fstat(_fileno(file), &file_stat);
     u64 file_size = file_stat.st_size;
 
     Gap_Buffer gap_buffer = {};

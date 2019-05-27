@@ -8,8 +8,13 @@
 
 #include <assert.h>
 #include "base_commands.h"
+#include "window.h"
 
 COMMAND_SIG(newline) {
+    for (int i = 0; i < editor->windows.count; ++i) {
+        if (editor->windows.array[i]->cursor > editor->active_cursor)   editor->windows.array[i]->cursor++;
+    }
+
     editor->active_gap_buffer->set_point(editor->active_cursor);
     editor->active_gap_buffer->put_char('\n');
     editor->active_cursor = editor->active_gap_buffer->point_offset();
@@ -17,6 +22,11 @@ COMMAND_SIG(newline) {
 
 COMMAND_SIG(backspace_char) {
     if (editor->active_cursor == 0)   return;
+
+    for (int i = 0; i < editor->windows.count; ++i) {
+        if (editor->windows.array[i]->cursor > editor->active_cursor)   editor->windows.array[i]->cursor--;
+    }
+
     editor->active_gap_buffer->set_point(editor->active_cursor - 1);
     editor->active_gap_buffer->delete_chars(1);
     editor->active_cursor = editor->active_gap_buffer->point_offset();
@@ -125,8 +135,6 @@ COMMAND_SIG(split_active_window_vertically) {
     split_window(editor, editor->active_window, Layout_Orientation::Vertical);
 }
 
-#include "window.h"
-
 // @todo x and y should also be stored on the window, and not only on the parent layout
 COMMAND_SIG(change_active_window_from_mouse_click) {
     int x;
@@ -135,7 +143,7 @@ COMMAND_SIG(change_active_window_from_mouse_click) {
 
     // printf("mouse click: {x: %d, y: %d}\n", x, y);
 
-    Window *window_under_cursor;
+    Window *window_under_cursor = nullptr;
     for (int i = 0; i < editor->windows.count; ++i) {
         Layout *layout = editor->windows.array[i]->parent_layout;
         if (layout->rect.x < x && x < (layout->rect.x + layout->rect.w) &&
@@ -182,9 +190,9 @@ COMMAND_SIG(delete_active_window) {
             layout->sub_layout2 = nullptr;
         }
     } else {
-        Layout *sub_layout;
-        Window *delete_window;
-        Layout *delete_layout;
+        Layout *sub_layout = nullptr;
+        Window *delete_window = nullptr;
+        Layout *delete_layout = nullptr;
         if (layout->sub_layout1->window) {
             sub_layout = layout->sub_layout2;
             delete_window = layout->sub_layout1->window;

@@ -1,4 +1,8 @@
-* todos [0/1] [0%]
-- [ ] cursor changes position when adding or removing characters in the other window with the same buffer
+* todos [1/3] [33%]
+- [ ] open_file should return an error code, return the buffer as a pointer given in a parameter. And check if fopen_s return error code.
 
 - [ ] cursor save offset, if you only move up or down, and not left right, you should keep the offset also between lines with different length
+
+- [X] cursor changes position when adding or removing characters in the other window with the same buffer
+  - [ ] kind of a hack, always inserting/deleting/newline: i go over all windows and curos++ or cursor--.
+    Is there a better way? How do other edtiors store the position of cursor and marks?

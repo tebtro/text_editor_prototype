@@ -72,7 +72,7 @@ void free_editor(Editor *editor) {
 // @todo absolute path
 Buffer *open_file(Editor *editor, char *input_file_path) {
     FILE *file;
-    file = fopen(input_file_path, "r"); // test.jai demo.jai
+    errno_t error = fopen_s(&file, input_file_path, "r"); // test.jai demo.jai
     defer { fclose(file); };
 
     Buffer *buffer = (Buffer *) calloc(1, sizeof(Buffer));

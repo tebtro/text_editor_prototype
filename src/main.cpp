@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
     SDL_StartTextInput();
     defer { SDL_StopTextInput(); };
     while (running) {
-        u64 start_tick = SDL_GetTicks();
+        u32 start_tick = SDL_GetTicks();
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_QUIT) {
@@ -149,6 +149,10 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             if (event.type == SDL_TEXTINPUT) {
+                for (int i = 0; i < editor->windows.count; ++i) {
+                    if (editor->windows.array[i]->cursor > editor->active_cursor)   editor->windows.array[i]->cursor++;
+                }
+
                 editor->active_gap_buffer->set_point(editor->active_cursor);
                 editor->active_gap_buffer->put_char(event.text.text[0]);
                 editor->active_cursor = editor->active_gap_buffer->point_offset();
@@ -174,9 +178,9 @@ int main(int argc, char *argv[]) {
                                          SDL_FIRSTEVENT,
                                          SDL_LASTEVENT);
         // printf("event count: %d\n", event_count);
-        u64 frame_duration_ticks = SDL_GetTicks() - start_tick;
+        u32 frame_duration_ticks = SDL_GetTicks() - start_tick;
         if (frame_duration_ticks > MS_PER_FRAME)   frame_duration_ticks = MS_PER_FRAME;
-        u64 sleep_time = MS_PER_FRAME - frame_duration_ticks;
+        u32 sleep_time = MS_PER_FRAME - frame_duration_ticks;
         // printf("duration ticks: %llu, sleep_time: %llu\n", frame_duration_ticks, sleep_time);
         if (event_count == 0)   SDL_Delay(sleep_time);
     }
@@ -186,7 +190,7 @@ int main(int argc, char *argv[]) {
 #endif
 #if 1
     FILE *out;
-    out = fopen("../tests/test_out.jai", "wb");
+    errno_t err = fopen_s(&out, "../tests/test_out.jai", "wb");
     defer { fclose(out); };
     editor->active_gap_buffer->set_point(0);
     editor->active_gap_buffer->save_buffer_to_file(out);
