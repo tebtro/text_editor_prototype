@@ -10,41 +10,6 @@
     */
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 foo: int = 4;
 
 SOME_CONST :: 2;
@@ -54,13 +19,6 @@ Some_Struct :: struct {
     foo: int;
     some_variable: bool;
 };
-
-
-
-
-
-
-
 
 test :: () -> string {
     x: int = 4;
@@ -109,6 +67,21 @@ test :: () -> string {
 
 test_print :: () -> bool {
     hello: string = "sailor";
+    hello sailor this is some text.
+    x: string = "hello sailor" hello world is this the end of the buffer or not.
+    hello sailor 
+    hello
+asdfaskdfjlaksjdf
+asdf
+as
+dfa
+sdf
+as
+df
+as
+df
+asd
+f
 
     x: int = 1;
     a: bool = true;
@@ -134,8 +107,6 @@ test_return :: () -> int {
     i := "Hello Sailor!";
     return 123;
 }
-
-
 
 test_if :: () -> bool {
     x: bool = cast(bool) true;

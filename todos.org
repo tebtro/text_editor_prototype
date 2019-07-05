@@ -1,4 +1,5 @@
 * todos [1/3] [33%]
+- [ ] toolbar/filebar/mode-line or however it is called in emacs/vim, is just a bar, that is at the bottom of every window. So just another Surface that gets rendered. When resizing the bar height must be subtracted from the height of the actual window surface. Keep that in mind when resizing.
 - [ ] open_file should return an error code, return the buffer as a pointer given in a parameter. And check if fopen_s return error code.
 
 - [ ] cursor save offset, if you only move up or down, and not left right, you should keep the offset also between lines with different length

@@ -30,6 +30,7 @@ void render_glyph(SDL_Surface *window_surface, Theme *theme,
     if (!surface) {
         SDL_Rect rect = {(int)x * glyph_width, (int)y * glyph_height, glyph_width, glyph_height};
         SDL_BlitSurface(NULL, NULL, window_surface, &rect);
+        return;
     }
     width = surface->w;
     height = surface->h;

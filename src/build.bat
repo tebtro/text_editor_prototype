@@ -7,10 +7,10 @@ ctime -begin .\logs\text_editor.ctm
 
 del *.pdb > NUL 2> NUL
 
-IF NOT EXIST SDL2.dll   cp ..\src\libs\SDL2\lib\x64\SDL2.dll SDL2.dll
-IF NOT EXIST SDL2_ttf.dll   cp ..\src\libs\SDL2_ttf\lib\x64\SDL2_ttf.dll SDL2_ttf.dll
-IF NOT EXIST libfreetype-6.dll   cp ..\src\libs\SDL2_ttf\lib\x64\libfreetype-6.dll libfreetype-6.dll
-IF NOT EXIST zlib1.dll   cp ..\src\libs\SDL2_ttf\lib\x64\zlib1.dll zlib1.dll
+IF NOT EXIST SDL2.dll   cp ..\libs\SDL2\lib\x64\SDL2.dll SDL2.dll
+IF NOT EXIST SDL2_ttf.dll   cp ..\libs\SDL2_ttf\lib\x64\SDL2_ttf.dll SDL2_ttf.dll
+IF NOT EXIST libfreetype-6.dll   cp ..\libs\SDL2_ttf\lib\x64\libfreetype-6.dll libfreetype-6.dll
+IF NOT EXIST zlib1.dll   cp ..\libs\SDL2_ttf\lib\x64\zlib1.dll zlib1.dll
 
 :: shared libs folder path
 set SharedLibsPath=D:\_shared_libs
